@@ -42,6 +42,7 @@ public class Users {
 
     private LocalDateTime updateAt;
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private UserStatus status;
 
     @PrePersist
