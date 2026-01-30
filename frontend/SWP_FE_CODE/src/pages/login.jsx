@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { Button, Form, Input, Row, Col, Tabs, notification } from "antd";
 import './styles/login.css';
 import { Link, useNavigate } from "react-router-dom";
-// import { loginUserAPI } from "../services/api.service";
+import { loginAPI } from "../services/api.service";
 import { AuthContext } from "../context/auth.context";
 const LoginPage = () => {
     const [form] = Form.useForm();
@@ -10,23 +10,22 @@ const LoginPage = () => {
     const {user,setUser} = useContext(AuthContext);
 
     const onFinish = async (values) => {
-        // const res = await loginUserAPI(values.email, values.password);
-        // console.log(">>>>> response tu API:", res);
-        // if (res.user) {
-        //     notification.success({
-        //         title: "Login success",
-        //         description: "Đăng nhập thành công!",
-        //     });
-        //     localStorage.setItem("access_token", res.token);
-        //     setUser(res.user);
-        //     navigate('/homepage');
-        // } else {
-        //     notification.error({
-        //         title: "Login failed",
-        //         description: JSON.stringify(res.message),
-        //     });
-        // }
-        console.log("tai khoan da dang nhap:");
+        const res = await loginAPI(values.username, values.password);
+        if (res && res.accessKey) {
+            notification.success({
+                title: "Login success",
+                description: "Đăng nhập thành công!",
+            });
+            localStorage.setItem("access_token", res.accessKey);
+            setUser(res);
+            navigate('/homepage');
+        } else {
+            notification.error({
+                title: "Login failed",
+                // description: JSON.stringify(res.message),
+                description: "Đăng nhập thất bại!",
+            });
+        }
         
     };
 
@@ -53,15 +52,15 @@ const LoginPage = () => {
                     </div>
                     
                     <Form.Item
-                        label="Email"
-                        name="email"
+                        label="Username (email)"
+                        name="username"
                         rules={[
-                            { required: true, message: 'Email không được để trống!' },
-                            { type: "email", message: 'Email không đúng định dạng!' },
+                            { required: true, message: 'username không được để trống!' },
+                            { type: "email", message: 'username không đúng định dạng!' },
                         ]}
                     >
                         <Input 
-                            placeholder="Nhập email của bạn" 
+                            placeholder="Nhập username của bạn" 
                             className="modern-input"
                             size="large"
                         />

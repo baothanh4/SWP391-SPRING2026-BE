@@ -6,12 +6,18 @@ export const AuthContext = createContext({});
 export const AuthWrapper = (props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [user, setUser] = useState({
+        // _id: "",
+        // accessKey: "",
+        // email: "",
+        // profile: {
+        //     fullName: ""
+        // },
+        // role: "",
         _id: "",
-        email: "",
-        profile: {
-            fullName: ""
-        },
+        accessKey: "",
+        refreshKey: "",
         role: "",
+
     });
 
     return (
