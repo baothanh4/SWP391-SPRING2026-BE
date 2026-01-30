@@ -22,9 +22,9 @@ public class JWTService {
     private String SECRET_KEY ;
 
     public String generateAccessToken(Users user){
-        log.warn("🔐 [GEN] JWT_SECRET length = {}",
+        log.warn(" [GEN] JWT_SECRET length = {}",
                 SECRET_KEY == null ? "NULL" : SECRET_KEY.length());
-        log.warn("🔐 [GEN] userId = {}", user.getId());
+        log.warn(" [GEN] userId = {}", user.getId());
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("role",user.getRole().name())
@@ -46,7 +46,7 @@ public class JWTService {
     }
 
     public Claims extractClaimsJws(String token) {
-        log.warn("🔐 [VERIFY] JWT_SECRET length = {}",
+        log.warn(" [VERIFY] JWT_SECRET length = {}",
                 SECRET_KEY == null ? "NULL" : SECRET_KEY.length());
         return Jwts.parser()
                 .setSigningKey(Keys.hmacShaKeyFor(

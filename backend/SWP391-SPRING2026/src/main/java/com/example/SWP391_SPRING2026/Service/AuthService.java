@@ -23,10 +23,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     public LoginResponse login(LoginRequest request){
-        Users user=userRepository.findByEmailOrPhone(request.getUsername(),request.getPassword()).orElseThrow(() -> new RuntimeException("User not found"));
+        String username = request.getUsername();
+        Users user = userRepository.findByEmailOrPhone(username, username)
+                .orElseThrow(() -> new BadRequestException("Invalid username or password"));
 
-        if(!passwordEncoder.matches(request.getPassword(),user.getPassword())){
-            throw new RuntimeException("Incorrect email or password");
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new BadRequestException("Invalid username or password");
         }
 
         return new LoginResponse(
