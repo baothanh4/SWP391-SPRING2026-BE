@@ -19,35 +19,43 @@ public class PasswordResetService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
-    public void forgotPassword(String email){
-        Users user=userRepository.findByEmail(email).orElseThrow(()->new RuntimeException("Email not found"));
-        String otp=generateOtp();
+    public void forgotPassword(String email) {
+        Users user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
 
-        PasswordResetToken token=new PasswordResetToken();
-        token.setToken(otp);
+        String otp = generateOtp();
+
+        PasswordResetToken token = passwordResetTokenRepository
+                .findByUser(user)
+                .orElse(new PasswordResetToken());
+
         token.setUser(user);
+        token.setToken(otp);
         token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
         token.setUsed(false);
 
         passwordResetTokenRepository.save(token);
-        emailService.sendResetPasswordEmail(email,otp);
+
+        emailService.sendResetPasswordEmail(email, otp);
     }
 
-    public void resetPassword(String email,String otp,String newPassword){
-        Users user=userRepository.findByEmail(email).orElseThrow(()->new RuntimeException("Email not found"));
+    public void resetPassword(String email, String otp, String newPassword) {
+        Users user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found"));
 
-        PasswordResetToken token=passwordResetTokenRepository.findByToken(otp).orElseThrow(()->new RuntimeException("Invalid OTP"));
+        PasswordResetToken token = passwordResetTokenRepository.findByToken(otp)
+                .orElseThrow(() -> new RuntimeException("Invalid OTP"));
 
-        if(token.isUsed()){
-            throw new RuntimeException("OTP Already Used");
+        if (token.isUsed()) {
+            throw new RuntimeException("OTP already used");
         }
 
-        if(token.getExpiryDate().isBefore(LocalDateTime.now())){
-            throw new RuntimeException("OTP Expired");
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("OTP expired");
         }
 
-        if(!token.getUser().getId().equals(user.getId())){
-            throw new RuntimeException("User does not belong to this User");
+        if (!token.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("OTP does not belong to this user");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
