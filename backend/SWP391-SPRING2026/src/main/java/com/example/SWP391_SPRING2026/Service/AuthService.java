@@ -1,10 +1,10 @@
 package com.example.SWP391_SPRING2026.Service;
 
 
-import com.example.SWP391_SPRING2026.DTO.LoginRequest;
-import com.example.SWP391_SPRING2026.DTO.LoginResponse;
-import com.example.SWP391_SPRING2026.DTO.RegisterRequest;
-import com.example.SWP391_SPRING2026.DTO.RegisterResponse;
+import com.example.SWP391_SPRING2026.DTO.Request.LoginRequest;
+import com.example.SWP391_SPRING2026.DTO.Response.LoginResponse;
+import com.example.SWP391_SPRING2026.DTO.Request.RegisterRequest;
+import com.example.SWP391_SPRING2026.DTO.Response.RegisterResponse;
 import com.example.SWP391_SPRING2026.Entity.Users;
 import com.example.SWP391_SPRING2026.Enum.UserRole;
 import com.example.SWP391_SPRING2026.Enum.UserStatus;
