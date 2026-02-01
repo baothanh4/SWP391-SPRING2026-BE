@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Config;
 
+import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.JWTService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -24,43 +25,43 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
     private final JWTService jwtService;
-    private final UserDetailsService userDetailsService;
-    private static final Logger log = LoggerFactory.getLogger(JWTService.class);
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
-        log.warn("📌 Authorization header = {}", authHeader);
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
-        log.warn("📌 JWT token = {}", token);
         Claims claims = jwtService.extractClaimsJws(token);
 
-        String userId = claims.getSubject();
+        Long userId = Long.parseLong(claims.getSubject());
         String role = claims.get("role", String.class);
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails =
-                    userDetailsService.loadUserByUsername(
-                            claims.get("email", String.class)
-                    );
 
-            UsernamePasswordAuthenticationToken auth =
+            UserPrincipal principal =
+                    new UserPrincipal(userId, role);
+
+            UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            userDetails,
+                            principal,
                             null,
-                            userDetails.getAuthorities()
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     );
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authentication);
         }
 
         filterChain.doFilter(request, response);

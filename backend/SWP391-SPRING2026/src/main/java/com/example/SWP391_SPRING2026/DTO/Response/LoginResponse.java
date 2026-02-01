@@ -1,4 +1,4 @@
-package com.example.SWP391_SPRING2026.DTO;
+package com.example.SWP391_SPRING2026.DTO.Response;
 
 import com.example.SWP391_SPRING2026.Enum.UserRole;
 import lombok.AllArgsConstructor;
