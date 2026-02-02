@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -89,4 +90,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("inStock") Boolean inStock,
             Pageable pageable
     );
+
+    @Query("""
+    select distinct p from Product p
+    left join fetch p.variants v
+    where p.id = :id
+""")
+    Optional<Product> findDetailById(@Param("id") Long id);
+
 }

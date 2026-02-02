@@ -4,21 +4,22 @@ import com.example.SWP391_SPRING2026.DTO.Request.ProductRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.VariantAttributeRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantDetailDTO;
 import com.example.SWP391_SPRING2026.Entity.Product;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
-import com.example.SWP391_SPRING2026.Repository.ProductRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
+import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
+import com.example.SWP391_SPRING2026.Repository.ProductRepository;
 import com.example.SWP391_SPRING2026.Repository.Projection.ProductSearchProjection;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 
 @Service
@@ -147,7 +148,50 @@ public class ProductService {
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
+    @Transactional(readOnly = true)
+    public ProductDetailResponseDTO getPublicProductDetails(Long productId) {
+        Product product = productRepository.findDetailById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
+        // customer chỉ được xem ACTIVE
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new ResourceNotFoundException("Product not found");
+        }
 
+        return mapToDetailDTO(product);
+    }
+    private ProductDetailResponseDTO mapToDetailDTO(Product product) {
+        ProductDetailResponseDTO dto = new ProductDetailResponseDTO();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setBrandName(product.getBrandName());
+        dto.setDescription(product.getDescription());
+        dto.setProductImage(product.getProductImage());
+
+        List<ProductVariantDetailDTO> variants = product.getVariants().stream()
+                .map(v -> {
+                    ProductVariantDetailDTO vdto = new ProductVariantDetailDTO();
+                    vdto.setId(v.getId());
+                    vdto.setSku(v.getSku());
+                    vdto.setPrice(v.getPrice());
+                    vdto.setStockQuantity(v.getStockQuantity());
+
+                    List<VariantAttributeRequestDTO> attrs = v.getAttributes().stream()
+                            .map(a -> {
+                                VariantAttributeRequestDTO adto = new VariantAttributeRequestDTO();
+                                adto.setAttributeName(a.getAttributeName());
+                                adto.setAttributeValue(a.getAttributeValue());
+                                return adto;
+                            })
+                            .toList();
+
+                    vdto.setVariantAttributeRequestDTOList(attrs);
+                    return vdto;
+                })
+                .toList();
+
+        dto.setVariants(variants);
+        return dto;
+    }
 
 }

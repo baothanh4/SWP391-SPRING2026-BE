@@ -1,6 +1,8 @@
 package com.example.SWP391_SPRING2026.Controller;
 
+import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
+import org.springframework.web.bind.annotation.PathVariable;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/public/products")
 @RequiredArgsConstructor
+
 public class PublicProductController {
 
     private final ProductService productService;
@@ -34,4 +37,10 @@ public class PublicProductController {
     ) {
         return productService.searchPublicProducts(keyword, brand, status, minPrice, maxPrice, inStock, pageable);
     }
+
+    @GetMapping("/{id:\\d+}")
+    public ProductDetailResponseDTO getProductDetail(@PathVariable Long id) {
+        return productService.getPublicProductDetails(id);
+    }
+
 }
