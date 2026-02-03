@@ -22,7 +22,7 @@ const ResetPasswordPage = () => {
             if (res) {
                 notification.success({
                     message: "Password reset successful",
-                    description: "Đặt lại mật khẩu thành công!",
+                    description: JSON.stringify(res),
                 });
                 navigate('/login');
             } else {

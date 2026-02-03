@@ -25,7 +25,7 @@ const ForgetPasswordPage = () => {
                 setEmailSent(values.email);
                 notification.success({
                     message: "Email sent",
-                    description: "Mã OTP đã được gửi đến email của bạn!",
+                    description: JSON.stringify(res),
                 });
                 
                 // Start countdown
