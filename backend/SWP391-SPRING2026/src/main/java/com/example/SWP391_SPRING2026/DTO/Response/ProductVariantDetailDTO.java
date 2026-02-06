@@ -12,5 +12,5 @@ public class ProductVariantDetailDTO {
     private String sku;
     private BigDecimal price;
     private Integer stockQuantity;
-    private List<VariantAttributeRequestDTO> variantAttributeRequestDTOList;
+    private List<VariantAttributeResponseDTO> attributes;
 }

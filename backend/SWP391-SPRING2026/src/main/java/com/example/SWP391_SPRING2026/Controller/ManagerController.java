@@ -2,16 +2,21 @@ package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Request.ProductRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.ProductVariantRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Request.VariantAttributeImageListRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.VariantAttributeRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
 import com.example.SWP391_SPRING2026.Service.ProductService;
 import com.example.SWP391_SPRING2026.Service.ProductVariantService;
+import com.example.SWP391_SPRING2026.Service.VariantAttributeImageService;
 import com.example.SWP391_SPRING2026.Service.VariantAttributeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/manager")
@@ -22,7 +27,7 @@ public class ManagerController {
     private final ProductService productService;
     private final ProductVariantService productVariantService;
     private final VariantAttributeService variantAttributeService;
-
+    private final VariantAttributeImageService  variantAttributeImageService;
     // ===================== PRODUCT =====================
 
     @PostMapping("/products")
@@ -52,6 +57,18 @@ public class ManagerController {
             @PathVariable Long productId,
             @RequestBody ProductVariantRequestDTO dto) {
         return productVariantService.create(productId, dto);
+    }
+
+    @GetMapping("/products")
+    @ResponseStatus(HttpStatus.OK)
+    public List<ProductResponseDTO> getAllProducts() {
+        return productService.getProducts();
+    }
+
+    @GetMapping("/products/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public ProductDetailResponseDTO getProduct(@PathVariable Long id) {
+        return productService.getProductDetails(id);
     }
 
     @PutMapping("/variants/{variantId}")
@@ -88,5 +105,17 @@ public class ManagerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttribute(@PathVariable Long attributeId) {
         variantAttributeService.deleteAttribute(attributeId);
+    }
+
+    @PostMapping("/attributes/{attributeId}/images")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void addAttributeImages(@PathVariable(name = "attributeId") Long attributeId, @RequestBody VariantAttributeImageListRequestDTO dto){
+        variantAttributeImageService.addImages(attributeId,dto.getImages());
+    }
+
+    @DeleteMapping("/attributes/images/{imageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAttributeImages(@PathVariable Long imageId) {
+        variantAttributeImageService.deleteImage(imageId);
     }
 }

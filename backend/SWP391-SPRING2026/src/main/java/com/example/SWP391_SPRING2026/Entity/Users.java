@@ -33,7 +33,7 @@ public class Users {
     private String fullName;
 
     @Enumerated(EnumType.STRING)
-    private UserRole role;
+    private UserRole role = UserRole.CUSTOMER;
 
     private LocalDate dob;
 
@@ -45,7 +45,7 @@ public class Users {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserStatus status;
+    private UserStatus status = UserStatus.INACTIVE;
 
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<Address> addresses;
@@ -56,6 +56,8 @@ public class Users {
         LocalDateTime now = LocalDateTime.now();
         if (createAt == null) createAt = now;
         if (updateAt == null) updateAt = now;
+        if (role == null) role = UserRole.CUSTOMER;
+        if (status == null) status = UserStatus.INACTIVE;
     }
 
     @PreUpdate

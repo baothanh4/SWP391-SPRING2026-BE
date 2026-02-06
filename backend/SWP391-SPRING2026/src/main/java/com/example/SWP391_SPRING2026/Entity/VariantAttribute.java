@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "variant_attributes")
 @Data
@@ -21,4 +24,11 @@ public class VariantAttribute {
     @ManyToOne
     @JoinColumn(name = "product_variant_id")
     private ProductVariant productVariant;
+
+    @OneToMany(
+            mappedBy = "variantAttribute",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<VariantAttributeImage> images = new ArrayList<>();
 }

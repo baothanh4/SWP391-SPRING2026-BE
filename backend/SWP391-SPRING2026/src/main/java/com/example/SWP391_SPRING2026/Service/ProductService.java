@@ -2,11 +2,9 @@ package com.example.SWP391_SPRING2026.Service;
 
 import com.example.SWP391_SPRING2026.DTO.Request.ProductRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.VariantAttributeRequestDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
-import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantDetailDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.*;
 import com.example.SWP391_SPRING2026.Entity.Product;
+import com.example.SWP391_SPRING2026.Entity.VariantAttributeImage;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
@@ -19,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 
 
@@ -45,36 +44,11 @@ public class ProductService {
                 .toList();
     }
 
-    public ProductDetailResponseDTO getProductDetails(Long productId){
-        Product product = productRepository.findById(productId).orElseThrow(() ->new RuntimeException("Product not found"));
+    public ProductDetailResponseDTO getProductDetails(Long productId) {
+        Product product = productRepository.findDetailById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        ProductDetailResponseDTO dto = new ProductDetailResponseDTO();
-        dto.setId(product.getId());
-        dto.setName(product.getName());
-        dto.setBrandName(product.getBrandName());
-        dto.setDescription(product.getDescription());
-        dto.setProductImage(product.getProductImage());
-
-        List<ProductVariantDetailDTO> variants = product.getVariants().stream()
-                .map(variant -> {
-                    ProductVariantDetailDTO dto2 = new ProductVariantDetailDTO();
-                    dto2.setId(variant.getId());
-                    dto2.setSku(variant.getSku());
-                    dto2.setPrice(variant.getPrice());
-                    dto2.setStockQuantity(variant.getStockQuantity());
-
-                    List<VariantAttributeRequestDTO> attrs= variant.getAttributes().stream()
-                            .map(attr -> {
-                                VariantAttributeRequestDTO dto3 = new VariantAttributeRequestDTO();
-                                dto3.setAttributeName(attr.getAttributeName());
-                                dto3.setAttributeValue(attr.getAttributeValue());
-                                return dto3;
-                            }).toList();
-                    dto2.setVariantAttributeRequestDTOList(attrs);
-                    return dto2;
-                }).toList();
-        dto.setVariants(variants);
-        return dto;
+        return mapToDetailDTO(product);
     }
 
     public ProductResponseDTO updateProduct(Long productId,ProductRequestDTO dto){
@@ -166,7 +140,7 @@ public class ProductService {
         dto.setName(product.getName());
         dto.setBrandName(product.getBrandName());
         dto.setDescription(product.getDescription());
-        dto.setProductImage(product.getProductImage());
+        dto.setProductImage(product.getProductImage()); // thumbnail
 
         List<ProductVariantDetailDTO> variants = product.getVariants().stream()
                 .map(v -> {
@@ -176,16 +150,23 @@ public class ProductService {
                     vdto.setPrice(v.getPrice());
                     vdto.setStockQuantity(v.getStockQuantity());
 
-                    List<VariantAttributeRequestDTO> attrs = v.getAttributes().stream()
+                    List<VariantAttributeResponseDTO> attrs = v.getAttributes().stream()
                             .map(a -> {
-                                VariantAttributeRequestDTO adto = new VariantAttributeRequestDTO();
+                                VariantAttributeResponseDTO adto = new VariantAttributeResponseDTO();
+                                adto.setId(a.getId());
                                 adto.setAttributeName(a.getAttributeName());
                                 adto.setAttributeValue(a.getAttributeValue());
+                                adto.setImages(
+                                        a.getImages().stream()
+                                                .sorted(Comparator.comparing(VariantAttributeImage::getSortOrder))
+                                                .map(VariantAttributeImage::getImageUrl)
+                                                .toList()
+                                );
                                 return adto;
                             })
                             .toList();
 
-                    vdto.setVariantAttributeRequestDTOList(attrs);
+                    vdto.setAttributes(attrs);
                     return vdto;
                 })
                 .toList();
@@ -193,5 +174,6 @@ public class ProductService {
         dto.setVariants(variants);
         return dto;
     }
+
 
 }

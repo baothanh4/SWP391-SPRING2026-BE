@@ -2,13 +2,18 @@ package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Request.AddressRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.AddressUpdateDTO;
+import com.example.SWP391_SPRING2026.DTO.Request.ChangePasswordDTO;
+import com.example.SWP391_SPRING2026.DTO.Request.CustomerAccountResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.AddressResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.AddressService;
+import com.example.SWP391_SPRING2026.Service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,7 +25,7 @@ import java.util.List;
 public class CustomerController {
 
     private final AddressService addressService;
-
+    private final CustomerService customerService;
     @PostMapping("/addresses")
     public AddressResponseDTO create(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -61,5 +66,25 @@ public class CustomerController {
             @PathVariable Long addressId
     ) {
         addressService.delete(principal.getUserId(), addressId);
+    }
+
+    @GetMapping("/profile")
+    public CustomerAccountResponseDTO getProfile(@AuthenticationPrincipal UserPrincipal principal) {
+        return customerService.getProfile(principal.getUserId());
+    }
+
+    @PutMapping("/profile")
+    public CustomerAccountResponseDTO updateProfile(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody CustomerAccountUpdateDTO dto){
+        return customerService.updateProfile(principal.getUserId(), dto);
+    }
+
+    @PutMapping("/profile/change-password")
+    public void changePassword(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody ChangePasswordDTO dto){
+        customerService.changePassword(principal.getUserId(), dto);
+    }
+
+    @DeleteMapping("/profile")
+    public void disableAccount(@AuthenticationPrincipal UserPrincipal principal){
+        customerService.disableAccount(principal.getUserId());
     }
 }
