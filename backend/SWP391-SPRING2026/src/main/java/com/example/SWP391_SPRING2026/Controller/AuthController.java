@@ -31,9 +31,9 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
-        RegisterResponse created = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        authService.register(request);
+        return ResponseEntity.ok("OTP send to verify");
     }
 
     @PostMapping("/forgot-password")
@@ -46,5 +46,17 @@ public class AuthController {
     public ResponseEntity<?> resetPassword(@RequestParam String email,@RequestParam String otp,@RequestParam String newPassword){
         passwordResetService.resetPassword(email,otp,newPassword);
         return ResponseEntity.ok("Password reset completed");
+    }
+
+    @PostMapping("/register/verify-otp")
+    public ResponseEntity<?> verifyRegisterOtp(@RequestParam String email,@RequestParam String otp){
+        authService.verifyRegisterOtp(email,otp);
+        return ResponseEntity.ok("Account verification completed");
+    }
+
+    @PostMapping("/register/resend-otp")
+    public ResponseEntity<?> resendOtp(@RequestParam String email){
+        authService.resendRegisterOtp(email);
+        return ResponseEntity.ok("OTP resend completed");
     }
 }

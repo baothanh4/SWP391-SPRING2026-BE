@@ -45,12 +45,10 @@ public class CartService {
     }
 
     public CartResponseDTO addToCart(Long userId, AddToCartDTO dto) {
-        if (dto.getQuantity() == null || dto.getQuantity() < 1) {
-            throw new BadRequestException("Quantity must be >= 1");
+        if(dto.getQuantity() == null || dto.getQuantity() <1){
+            throw new RuntimeException("Quantity is empty");
         }
-
         Cart cart = getOrCreateActiveCart(userId);
-
         ProductVariant variant = resolveVariant(dto);
 
         validateSellableAndStock(variant, dto.getQuantity());
@@ -64,6 +62,10 @@ public class CartService {
             item.setCart(cart);
             item.setProductVariant(variant);
             item.setQuantity(dto.getQuantity());
+
+            // 🔥 QUAN TRỌNG: add vào cart.items
+            cart.getItems().add(item);
+
         } else {
             int newQty = item.getQuantity() + dto.getQuantity();
             validateSellableAndStock(variant, newQty);
@@ -71,7 +73,9 @@ public class CartService {
         }
 
         cartItemRepository.save(item);
+
         return getCurrentCart(userId);
+
     }
 
     public CartResponseDTO updateItemQuantity(Long userId, Long itemId, UpdateCartItemDTO dto) {

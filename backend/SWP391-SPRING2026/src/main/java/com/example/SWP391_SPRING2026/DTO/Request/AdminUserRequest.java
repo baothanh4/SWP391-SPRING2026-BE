@@ -2,12 +2,16 @@ package com.example.SWP391_SPRING2026.DTO.Request;
 
 import com.example.SWP391_SPRING2026.Enum.UserRole;
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDate;
 
 @Data
-public class RegisterRequest {
-
+@AllArgsConstructor
+@NoArgsConstructor
+public class AdminUserRequest {
     @NotBlank(message = "Email is required")
     @Email(message = "Email is not valid")
     private String email;
@@ -26,9 +30,6 @@ public class RegisterRequest {
     @Size(min = 8, max = 15, message = "Password must be between 8 and 15 characters")
     private String password;
 
-    @NotBlank(message = "Confirm password is required")
-    private String confirmPassword;
-
     @NotBlank(message = "Full name is required")
     private String fullName;
 
@@ -40,4 +41,6 @@ public class RegisterRequest {
     @Min(value = 0, message = "Gender must be between 0 and 2")
     @Max(value = 2, message = "Gender must be between 0 and 2")
     private Integer gender;
+
+    private UserRole role;
 }
