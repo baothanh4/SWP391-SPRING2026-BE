@@ -2,14 +2,11 @@ package com.example.SWP391_SPRING2026.Service;
 
 import com.example.SWP391_SPRING2026.DTO.Request.AddToCartDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CartSummaryUpdateDTO;
+import com.example.SWP391_SPRING2026.DTO.Request.CartVariantAttributeDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.UpdateCartItemDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CartItemResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CartResponseDTO;
-import com.example.SWP391_SPRING2026.Entity.Cart;
-import com.example.SWP391_SPRING2026.Entity.CartItem;
-import com.example.SWP391_SPRING2026.Entity.Product;
-import com.example.SWP391_SPRING2026.Entity.ProductVariant;
-import com.example.SWP391_SPRING2026.Entity.Users;
+import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.CartStatus;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
@@ -25,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -192,6 +190,23 @@ public class CartService {
 
         for (CartItem item : cart.getItems()) {
             ProductVariant v = item.getProductVariant();
+            List<CartVariantAttributeDTO> attrDTOs =
+                    v.getAttributes().stream()
+                            .map(attr -> {
+                                CartVariantAttributeDTO adto = new CartVariantAttributeDTO();
+                                adto.setAttributeName(attr.getAttributeName());
+                                adto.setAttributeValue(attr.getAttributeValue());
+
+                                adto.setImages(
+                                        attr.getImages().stream()
+                                                .sorted(Comparator.comparing(VariantAttributeImage::getSortOrder))
+                                                .map(VariantAttributeImage::getImageUrl)
+                                                .toList()
+                                );
+                                return adto;
+                            })
+                            .toList();
+
             Product p = v.getProduct();
 
             BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
@@ -201,15 +216,24 @@ public class CartService {
             CartItemResponseDTO dto = new CartItemResponseDTO();
             dto.setProductId(p != null ? p.getId() : null);
             dto.setProductName(p != null ? p.getName() : null);
-            dto.setProductImage(p != null ? p.getProductImage() : null);
+
+            String displayImage = attrDTOs.stream()
+                    .flatMap(a -> a.getImages().stream())
+                    .findFirst()
+                    .orElse(p != null ? p.getProductImage() : null);
+
+            dto.setProductImage(displayImage);
             dto.setUnitPrice(unitPrice);
             dto.setQuantity(qty);
             dto.setTotalPrice(totalPrice);
 
+            dto.setAttributes(attrDTOs);
             itemDTOs.add(dto);
 
             subTotal = subTotal.add(totalPrice);
             totalItems += qty;
+
+
         }
 
         BigDecimal discount = calculateDiscount(subTotal, cart.getCouponCode());
