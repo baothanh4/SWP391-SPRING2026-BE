@@ -14,12 +14,9 @@ public class RegisterRequest {
 
     @NotBlank(message = "Phone number is required")
     @Pattern(
-            regexp = "^(0|\\+84)\\d{9}$",
+            regexp = "^(0|\\+84)(3|5|7|8|9)\\d{8}$",
             message = "Phone number is not valid"
     )
-
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 15, message = "Password must be between 8 and 15 characters")
     private String phone;
 
     @NotBlank(message = "Password is required")
