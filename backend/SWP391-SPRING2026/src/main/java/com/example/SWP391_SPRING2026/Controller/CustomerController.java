@@ -11,6 +11,7 @@ import com.example.SWP391_SPRING2026.Service.AddressService;
 import com.example.SWP391_SPRING2026.Service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
@@ -86,5 +87,11 @@ public class CustomerController {
     @DeleteMapping("/profile")
     public void disableAccount(@AuthenticationPrincipal UserPrincipal principal){
         customerService.disableAccount(principal.getUserId());
+    }
+
+    @PutMapping("/orders/{orderId}/cancel")
+    public ResponseEntity<String> cancelOrder(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long orderId){
+        customerService.cancelOrderByCustomer(principal.getUserId(), orderId);
+        return ResponseEntity.ok("Order Cancelled");
     }
 }
