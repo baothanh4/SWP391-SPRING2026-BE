@@ -43,9 +43,10 @@ public class CartService {
     }
 
     public CartResponseDTO addToCart(Long userId, AddToCartDTO dto) {
-        if(dto.getQuantity() == null || dto.getQuantity() <1){
+        if (dto.getQuantity() == null || dto.getQuantity() < 1) {
             throw new BadRequestException("Quantity must be >= 1");
         }
+
         Cart cart = getOrCreateActiveCart(userId);
         ProductVariant variant = resolveVariant(dto);
 
@@ -55,30 +56,35 @@ public class CartService {
                 .findByCartIdAndProductVariantId(cart.getId(), variant.getId())
                 .orElse(null);
 
-        if (item.getQuantity() + dto.getQuantity() > 100) {
-            throw new BadRequestException("Maximum quantity exceeded");
-        }
-
         if (item == null) {
+            // ✅ tạo mới
+            if (dto.getQuantity() > 100) {
+                throw new BadRequestException("Maximum quantity exceeded");
+            }
+
             item = new CartItem();
             item.setCart(cart);
             item.setProductVariant(variant);
             item.setQuantity(dto.getQuantity());
 
-            // 🔥 QUAN TRỌNG: add vào cart.items
             cart.getItems().add(item);
 
         } else {
+            // ✅ đã tồn tại → cộng dồn
             int newQty = item.getQuantity() + dto.getQuantity();
+
+            if (newQty > 100) {
+                throw new BadRequestException("Maximum quantity exceeded");
+            }
+
             validateSellableAndStock(variant, newQty);
             item.setQuantity(newQty);
         }
 
         cartItemRepository.save(item);
-
         return getCurrentCart(userId);
-
     }
+
 
     public CartResponseDTO updateItemQuantity(Long userId, Long itemId, UpdateCartItemDTO dto) {
         if (dto.getQuantity() == null || dto.getQuantity() < 1) {

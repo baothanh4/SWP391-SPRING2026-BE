@@ -2,6 +2,7 @@ package com.example.SWP391_SPRING2026.Entity;
 
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
 import com.example.SWP391_SPRING2026.Enum.OrderType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,19 +17,20 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "order_code",unique = true)
+    @Column(name = "order_code", unique = true, nullable = false)
     private String orderCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "order_type")
+    @Column(name = "order_type", nullable = false)
     private OrderType orderType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "order_status")
+    @Column(name = "order_status", nullable = false)
     private OrderStatus orderStatus;
 
     @Column(name = "total_amount")
@@ -40,11 +42,28 @@ public class Order {
     @Column(name = "remaining_amount")
     private Long remainingAmount;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id",nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "address_id")
     private Address address;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @OneToOne(
+            mappedBy = "order",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JsonIgnore
+    private Payment payment;
+
+    @OneToOne(
+            mappedBy = "order",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JsonIgnore
+    private Shipment shipment;
 }

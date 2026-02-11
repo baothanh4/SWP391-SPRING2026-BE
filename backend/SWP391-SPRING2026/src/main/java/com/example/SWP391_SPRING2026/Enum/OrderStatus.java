@@ -5,5 +5,8 @@ public enum OrderStatus {
     PAID,
     SHIPPING,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    PENDING_PAYMENT,
+    WAITING_CONFIRM,
+    CONFIRMED,
 }
