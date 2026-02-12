@@ -129,7 +129,7 @@ public class ProductService {
         Product product = productRepository.findDetailById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
-        // customer chỉ được xem ACTIVE
+
         if (product.getStatus() != ProductStatus.ACTIVE) {
             throw new ResourceNotFoundException("Product not found");
         }
@@ -187,6 +187,11 @@ public class ProductService {
             Pageable pageable
     ) {
         return searchPublicProducts(keyword, brand, ProductStatus.ACTIVE, minPrice, maxPrice, inStock, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getPublicBrands() {
+        return productRepository.findDistinctBrandNames(ProductStatus.ACTIVE);
     }
 
 

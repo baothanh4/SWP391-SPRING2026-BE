@@ -60,4 +60,10 @@ public class PublicProductController {
     public ResponseEntity<List<ProductResponseDTO>> getProducts(){
         return ResponseEntity.ok(productService.getProducts());
     }
+
+    @GetMapping("/brands")
+    public List<String> getBrands() {
+        return productService.getPublicBrands();
+    }
+
 }
