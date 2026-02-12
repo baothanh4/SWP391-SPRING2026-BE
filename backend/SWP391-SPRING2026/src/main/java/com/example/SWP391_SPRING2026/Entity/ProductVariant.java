@@ -32,8 +32,8 @@ public class ProductVariant {
     @Column(name = "sale_type",nullable = false)
     private SaleType saleType;
 
-    @ManyToOne
-    @JoinColumn(name = "product_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
     @OneToMany(mappedBy = "productVariant",cascade = CascadeType.ALL,orphanRemoval = true)

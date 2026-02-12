@@ -151,6 +151,7 @@ public class ProductService {
                     vdto.setSku(v.getSku());
                     vdto.setPrice(v.getPrice());
                     vdto.setStockQuantity(v.getStockQuantity());
+                    vdto.setSaleType(v.getSaleType());
 
                     List<VariantAttributeResponseDTO> attrs = v.getAttributes().stream()
                             .map(a -> {
@@ -175,6 +176,17 @@ public class ProductService {
 
         dto.setVariants(variants);
         return dto;
+    }
+
+    public Page<ProductSearchItemDTO> browsePublicProducts(
+            String keyword,
+            String brand,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Boolean inStock,
+            Pageable pageable
+    ) {
+        return searchPublicProducts(keyword, brand, ProductStatus.ACTIVE, minPrice, maxPrice, inStock, pageable);
     }
 
 

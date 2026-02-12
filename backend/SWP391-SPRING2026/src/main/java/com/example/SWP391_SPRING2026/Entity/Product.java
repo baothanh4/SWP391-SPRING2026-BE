@@ -34,6 +34,9 @@ public class Product {
 
     private LocalDateTime createdAt=LocalDateTime.now();
 
-    @OneToMany(mappedBy = "product",cascade = CascadeType.ALL,orphanRemoval = true)
+    @OneToMany(mappedBy = "product",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY)
     private List<ProductVariant> variants=new ArrayList<>();
 }
