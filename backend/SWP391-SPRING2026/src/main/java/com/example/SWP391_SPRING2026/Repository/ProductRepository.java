@@ -102,10 +102,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<String> findDistinctBrandNames(@Param("status") ProductStatus status);
 
     @Query("""
-    select distinct p from Product p
-    left join fetch p.variants v
-    where p.id = :id
+    select distinct trim(p.brandName)
+    from Product p
+    where p.status = com.example.SWP391_SPRING2026.Enum.ProductStatus.ACTIVE
+      and p.brandName is not null
+      and trim(p.brandName) <> ''
 """)
+    List<String> findDistinctActiveBrands();
+
     Optional<Product> findDetailById(@Param("id") Long id);
 
 }

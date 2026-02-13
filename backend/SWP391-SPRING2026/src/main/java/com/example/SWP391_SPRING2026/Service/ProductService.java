@@ -189,10 +189,16 @@ public class ProductService {
         return searchPublicProducts(keyword, brand, ProductStatus.ACTIVE, minPrice, maxPrice, inStock, pageable);
     }
 
-    @Transactional(readOnly = true)
     public List<String> getPublicBrands() {
-        return productRepository.findDistinctBrandNames(ProductStatus.ACTIVE);
+        return productRepository.findDistinctActiveBrands()
+                .stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
     }
+
 
 
 }
