@@ -29,6 +29,13 @@ public class Shipment {
     @Column(nullable = false)
     private ShipmentStatus status;
 
+    @Column(name = "ghn_order_code",unique = true)
+    private String ghnOrderCode;
+
+    private Long codAmount;
+
+    private Boolean codCollected = false;
+
     @Column(name = "shipped_at")
     private LocalDateTime shippedAt;
 
