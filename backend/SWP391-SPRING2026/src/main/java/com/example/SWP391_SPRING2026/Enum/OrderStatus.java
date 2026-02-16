@@ -9,4 +9,5 @@ public enum OrderStatus {
     PENDING_PAYMENT,
     WAITING_CONFIRM,
     CONFIRMED,
+    SUPPORT_CONFIRMED
 }

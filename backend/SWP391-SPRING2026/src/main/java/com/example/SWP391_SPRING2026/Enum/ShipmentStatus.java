@@ -5,5 +5,8 @@ public enum ShipmentStatus {
     PREPARING,         // đang đóng gói
     SHIPPED,
     DELIVERED,
-    CANCELLED
+    CANCELLED,
+    READY_TO_PICK,
+    PICKING,
+    DELIVERING
 }
