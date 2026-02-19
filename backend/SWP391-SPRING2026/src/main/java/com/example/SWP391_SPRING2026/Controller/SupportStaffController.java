@@ -40,6 +40,8 @@ public class SupportStaffController {
 
         order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
 
+        orderRepository.save(order);
+
         return ResponseEntity.ok("Order confirmed by support");
     }
 
@@ -52,7 +54,7 @@ public class SupportStaffController {
                 .orElseThrow();
 
         order.setOrderStatus(OrderStatus.CANCELLED);
-
+        orderRepository.save(order);
         return ResponseEntity.ok("Order cancelled by support");
     }
 }

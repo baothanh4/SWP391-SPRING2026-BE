@@ -1,107 +1,128 @@
 package com.example.SWP391_SPRING2026.Service;
 
-
 import com.example.SWP391_SPRING2026.DTO.Request.CreateGhnOrderRequest;
 import com.example.SWP391_SPRING2026.Entity.Address;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import org.springframework.http.HttpHeaders;
 import java.util.List;
-
 
 @Service
 @RequiredArgsConstructor
 public class GhnService {
+
     private final RestTemplate restTemplate;
 
-    @Value("${ghn.token}")
-    private String token;
+    private final String token = "ede20835-0d23-11f1-a3d6-dac90fb956b5";
+    private final String shopId = "199365";
+    private final String baseUrl = "https://dev-online-gateway.ghn.vn/shiip/public-api";
 
-    @Value("${ghn.shop-id}")
-    private String shopId;
-
-    @Value("${ghn.baseUrl}")
-    private String baseUrl;
-
+    // ================= HEADERS =================
     private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Token", token);
         headers.set("ShopId", shopId);
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         return headers;
     }
 
-    public String createGhnOrder(CreateGhnOrderRequest request) {
+    // ================= MASTER DATA =================
+
+    public String getDistricts(int provinceId) {
+        String url = baseUrl + "/v2/master-data/district?province_id=" + provinceId;
+
+        HttpEntity<?> entity = new HttpEntity<>(createHeaders());
+
+        ResponseEntity<String> response =
+                restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+        return response.getBody();
+    }
+
+
+    public String getWards(int districtId) {
+
+        String url = baseUrl + "/v2/master-data/ward";
+
+        String body = """
+            {
+              "district_id": %d
+            }
+            """.formatted(districtId);
+
+        HttpEntity<String> entity =
+                new HttpEntity<>(body, createHeaders());
+
+        ResponseEntity<String> response =
+                restTemplate.postForEntity(url, entity, String.class);
+
+        return response.getBody();
+    }
+
+    // ================= CREATE ORDER =================
+
+    public String createOrder(Order order) {
+
+        CreateGhnOrderRequest request = buildRequest(order);
 
         String url = baseUrl + "/v2/shipping-order/create";
 
         HttpEntity<CreateGhnOrderRequest> entity =
                 new HttpEntity<>(request, createHeaders());
 
-        ResponseEntity<JsonNode> response =
-                restTemplate.postForEntity(url, entity, JsonNode.class);
+        ResponseEntity<String> response =
+                restTemplate.postForEntity(url, entity, String.class);
 
-        return response.getBody()
-                .path("data")
-                .path("order_code")
-                .asText();
+        return extractOrderCode(response.getBody());
     }
 
-
-    public CreateGhnOrderRequest buildRequest(Order order) {
+    private CreateGhnOrderRequest buildRequest(Order order) {
 
         CreateGhnOrderRequest request = new CreateGhnOrderRequest();
 
         // ===== PAYMENT =====
         if (order.getPayment().getMethod() == PaymentMethod.COD) {
-            request.setPayment_type_id("2"); // người nhận trả
-            request.setCod_amount(
-                    order.getRemainingAmount() != null
-                            ? order.getRemainingAmount().intValue()
-                            : order.getTotalAmount().intValue()
-            );
+            request.setPayment_type_id(2);
+            request.setCod_amount(order.getRemainingAmount().intValue());
         } else {
-            request.setPayment_type_id("1"); // người gửi trả
+            request.setPayment_type_id(1);
             request.setCod_amount(0);
         }
 
         request.setNote("Giao giờ hành chính");
         request.setRequired_note("KHONGCHOXEMHANG");
 
-        // ===== SHOP INFO =====
+        // ===== SHOP INFO (HARDCODE DEMO) =====
         request.setFrom_name("SWP391 Shop");
-        request.setFrom_phone("0900000000");
+        request.setFrom_phone("0901234567");
         request.setFrom_address("123 Nguyen Trai");
-        request.setFrom_ward_name("Phường 7");
-        request.setFrom_district_name("Quận 5");
-        request.setFrom_province_name("Hồ Chí Minh");
+        request.setFrom_district_id(1454); // Quận 5
+        request.setFrom_ward_code("21211"); // Phường 7 (ví dụ)
 
         // ===== CUSTOMER =====
         Address address = order.getAddress();
 
         request.setTo_name(address.getReceiverName());
-        request.setTo_phone(address.getPhone());
+        request.setTo_phone(normalizePhone(address.getPhone()));
         request.setTo_address(address.getAddressLine());
-        request.setTo_ward_name(address.getWard());
-        request.setTo_district_name(address.getDistrict());
-        request.setTo_province_name(address.getProvince());
 
-        // ===== PACKAGE SIZE =====
-        request.setWeight(1000); // 1kg
+        // ⚠️ PHẢI LƯU district_id + ward_code TRONG DB
+        request.setTo_district_id(address.getDistrictId());
+        request.setTo_ward_code(address.getWardCode());
+
+        // ===== PACKAGE =====
+        request.setWeight(1000);
         request.setLength(20);
         request.setWidth(20);
         request.setHeight(10);
-
-        request.setService_type_id(2); // hàng thường
+        request.setService_type_id(2);
 
         // ===== ITEMS =====
         List<CreateGhnOrderRequest.Item> items =
@@ -128,25 +149,29 @@ public class GhnService {
         return request;
     }
 
-    public String createOrder(Order order) {
+    private String normalizePhone(String phone) {
+        if (phone == null) return null;
 
-        CreateGhnOrderRequest request = buildRequest(order);
+        phone = phone.trim().replaceAll("\\s+", "");
 
-        String url = baseUrl + "/v2/shipping-order/create";
+        if (phone.startsWith("+84")) {
+            phone = "0" + phone.substring(3);
+        }
 
-        HttpEntity<CreateGhnOrderRequest> entity =
-                new HttpEntity<>(request, createHeaders());
-
-        ResponseEntity<JsonNode> response =
-                restTemplate.postForEntity(url, entity, JsonNode.class);
-
-        return response.getBody()
-                .path("data")
-                .path("order_code")
-                .asText();
+        return phone;
     }
 
+    private String extractOrderCode(String responseBody) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(responseBody);
 
+            return root.path("data")
+                    .path("order_code")
+                    .asText();
 
-
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot parse GHN response", e);
+        }
+    }
 }

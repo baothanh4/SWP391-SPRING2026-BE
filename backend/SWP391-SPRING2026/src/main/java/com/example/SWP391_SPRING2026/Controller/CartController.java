@@ -5,12 +5,14 @@ import com.example.SWP391_SPRING2026.DTO.Request.CartSummaryUpdateDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CheckoutRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.UpdateCartItemDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CartResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.CheckoutResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.CartService;
 import com.example.SWP391_SPRING2026.Service.CheckoutService;
 import com.example.SWP391_SPRING2026.mapper.OrderMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -69,8 +71,14 @@ public class CartController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<OrderResponseDTO> checkout(@AuthenticationPrincipal UserPrincipal principal, @RequestBody CheckoutRequestDTO dto) {
-        Order order = checkoutService.checkout(principal.getUserId(), dto);
-        return ResponseEntity.ok(OrderMapper.toResponse(order));
+    public ResponseEntity<CheckoutResponseDTO> checkout(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody CheckoutRequestDTO dto,
+            HttpServletRequest request) {
+
+        CheckoutResponseDTO response =
+                checkoutService.checkout(principal.getUserId(), dto,request);
+
+        return ResponseEntity.ok(response);
     }
 }

@@ -27,7 +27,7 @@ public class UserCreateReq {
     @Past(message = "Ngày sinh phải là ngày trong quá khứ")
     private LocalDate dob;
 
-    // 0: Nữ, 1: Nam, 2: Khác
+    // 0: Nam, 1: Nữ, 2: Khác
     @NotNull(message = "Giới tính là bắt buộc")
     @Min(value = 0, message = "Giới tính phải trong khoảng 0..2")
     @Max(value = 2, message = "Giới tính phải trong khoảng 0..2")
