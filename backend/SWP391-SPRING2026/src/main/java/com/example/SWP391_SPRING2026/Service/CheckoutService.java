@@ -1,10 +1,12 @@
 package com.example.SWP391_SPRING2026.Service;
 
 import com.example.SWP391_SPRING2026.DTO.Request.CheckoutRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.CheckoutResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,8 +27,11 @@ public class CheckoutService {
     private final PreOrderRepository preOrderRepository;
     private final ShipmentRepository shipmentRepository;
     private final PaymentRepository paymentRepository;
+    private final VNPayService vnPayService;
 
-    public Order checkout(Long userId, CheckoutRequestDTO dto) {
+    public CheckoutResponseDTO checkout(Long userId,
+                                        CheckoutRequestDTO dto,
+                                        HttpServletRequest request) {
 
         Cart cart = cartRepository
                 .findByUserIdAndStatus(userId, CartStatus.ACTIVE)
@@ -44,15 +49,18 @@ public class CheckoutService {
             SaleType itemType = item.getProductVariant().getSaleType();
             if (saleType == null) saleType = itemType;
             else if (saleType != itemType) {
-                throw new BadRequestException("Cannot checkout mixed IN_STOCK and PRE_ORDER products");
+                throw new BadRequestException("Cannot checkout mixed products");
             }
         }
 
         // ===== CREATE ORDER =====
         Order order = new Order();
         order.setOrderCode("ORD-" + System.currentTimeMillis());
-        order.setOrderType(saleType == SaleType.IN_STOCK ? OrderType.IN_STOCK : OrderType.PRE_ORDER);
-        order.setOrderStatus(OrderStatus.WAITING_CONFIRM); // ✅ chờ staff confirm
+        order.setOrderType(
+                saleType == SaleType.IN_STOCK ?
+                        OrderType.IN_STOCK : OrderType.PRE_ORDER
+        );
+        order.setOrderStatus(OrderStatus.WAITING_CONFIRM);
         order.setAddress(address);
         order.setCreatedAt(LocalDateTime.now());
 
@@ -60,12 +68,12 @@ public class CheckoutService {
 
         long totalAmount = 0;
 
-        // ===== ORDER ITEMS =====
+        // ===== CREATE ORDER ITEMS =====
         for (CartItem cartItem : cart.getItems()) {
 
             ProductVariant variant = productVariantRepository
                     .lockById(cartItem.getProductVariant().getId())
-                    .orElseThrow(() -> new BadRequestException("Product variant not found"));
+                    .orElseThrow(() -> new BadRequestException("Variant not found"));
 
             int quantity = cartItem.getQuantity();
             long price = variant.getPrice().longValue();
@@ -74,7 +82,9 @@ public class CheckoutService {
                 if (variant.getStockQuantity() < quantity) {
                     throw new BadRequestException("Insufficient stock");
                 }
-                variant.setStockQuantity(variant.getStockQuantity() - quantity);
+                variant.setStockQuantity(
+                        variant.getStockQuantity() - quantity
+                );
             }
 
             OrderItems orderItem = new OrderItems();
@@ -88,7 +98,6 @@ public class CheckoutService {
 
             totalAmount += price * quantity;
 
-            // ===== PREORDER =====
             if (saleType == SaleType.PRE_ORDER) {
                 PreOrder preOrder = new PreOrder();
                 preOrder.setOrder(order);
@@ -103,43 +112,69 @@ public class CheckoutService {
 
         order.setTotalAmount(totalAmount);
 
+        long payableAmount =
+                saleType == SaleType.PRE_ORDER
+                        ? totalAmount * 30 / 100
+                        : totalAmount;
+
         if (saleType == SaleType.PRE_ORDER) {
-            long deposit = totalAmount * 30 / 100;
-            order.setDeposit(deposit);
-            order.setRemainingAmount(totalAmount - deposit);
+            order.setDeposit(payableAmount);
+            order.setRemainingAmount(totalAmount - payableAmount);
         }
 
-        // ===== PAYMENT =====
+        // ===== CREATE PAYMENT =====
         Payment payment = new Payment();
         payment.setOrder(order);
         payment.setMethod(dto.getPaymentMethod());
-        payment.setAmount(
-                saleType == SaleType.PRE_ORDER
-                        ? order.getDeposit()
-                        : totalAmount
-        );
+        payment.setAmount(payableAmount);
 
         if (dto.getPaymentMethod() == PaymentMethod.COD) {
-            payment.setStatus(PaymentStatus.UNPAID); // ✅ chưa trả tiền
-            payment.setPaidAt(null);
+            payment.setStatus(PaymentStatus.UNPAID);
         } else {
-            payment.setStatus(PaymentStatus.PENDING); // chờ cổng thanh toán
+            payment.setStatus(PaymentStatus.PENDING);
         }
 
         paymentRepository.save(payment);
-        order.setPayment(payment); // ✅ set 2 chiều
+        order.setPayment(payment);
 
-        // ===== SHIPMENT =====
+        // ===== CREATE SHIPMENT =====
         Shipment shipment = new Shipment();
         shipment.setOrder(order);
         shipment.setStatus(ShipmentStatus.WAITING_CONFIRM);
         shipmentRepository.save(shipment);
-        order.setShipment(shipment); // ✅ set 2 chiều
+        order.setShipment(shipment);
 
-        // ===== CART =====
         cart.setStatus(CartStatus.CHECKED_OUT);
 
-        return order;
+        // ===== VNPAY =====
+        String paymentUrl = null;
+
+        if (dto.getPaymentMethod() == PaymentMethod.VNPAY) {
+
+            // 🔥 LẤY IP CHUẨN
+            String ipAddress = request.getRemoteAddr();
+            if (ipAddress == null || ipAddress.equals("0:0:0:0:0:0:0:1")) {
+                ipAddress = "127.0.0.1";
+            }
+
+            try {
+                paymentUrl = vnPayService.createVNPayUrl(
+                        order.getId().toString(),
+                        payableAmount,
+                        ipAddress
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("Cannot create VNPay URL");
+            }
+        }
+
+        return new CheckoutResponseDTO(
+                order.getId(),
+                order.getOrderCode(),
+                payableAmount,
+                dto.getPaymentMethod(),
+                paymentUrl
+        );
     }
 
     private Address resolveAddress(Long userId, Long addressId) {
@@ -151,6 +186,6 @@ public class CheckoutService {
 
         return addressRepository
                 .findFirstByUser_IdAndIsDefaultTrue(userId)
-                .orElseThrow(() -> new BadRequestException("No default address found"));
+                .orElseThrow(() -> new BadRequestException("No default address"));
     }
 }
