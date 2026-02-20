@@ -23,4 +23,10 @@ public class AddressRequestDTO {
     @NotBlank
     private String province;
 
+    @NotBlank
+    private Integer districtId;
+
+    @NotBlank
+    private String wardCode;
+
 }

@@ -11,4 +11,6 @@ public class AddressUpdateDTO {
     private String ward;
     private String district;
     private String province;
+    private Integer districtId;
+    private String wardCode;
 }
