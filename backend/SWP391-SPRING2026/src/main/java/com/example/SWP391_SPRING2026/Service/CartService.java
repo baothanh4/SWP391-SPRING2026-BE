@@ -12,10 +12,7 @@ import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.InsufficientStockException;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
-import com.example.SWP391_SPRING2026.Repository.CartItemRepository;
-import com.example.SWP391_SPRING2026.Repository.CartRepository;
-import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
-import com.example.SWP391_SPRING2026.Repository.UserRepository;
+import com.example.SWP391_SPRING2026.Repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +31,8 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final ProductComboRepository  productComboRepository;
+
 
     public CartResponseDTO getCurrentCart(Long userId) {
         Cart cart = getOrCreateActiveCart(userId);
@@ -48,6 +47,29 @@ public class CartService {
         }
 
         Cart cart = getOrCreateActiveCart(userId);
+
+        if (dto.getProductComboId() != null) {
+
+            ProductCombo combo = productComboRepository.findById(dto.getProductComboId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Combo not found"));
+
+            CartItem item = cartItemRepository
+                    .findByCartIdAndProductComboId(cart.getId(), combo.getId());
+
+            if (item == null) {
+                item = new CartItem();
+                item.setCart(cart);
+                item.setProductCombo(combo);
+                item.setQuantity(dto.getQuantity());
+                cart.getItems().add(item);
+            } else {
+                item.setQuantity(item.getQuantity() + dto.getQuantity());
+            }
+
+            cartItemRepository.save(item);
+            return getCurrentCart(userId);
+        }
+
         ProductVariant variant = resolveVariant(dto);
 
         validateSellableAndStock(variant, dto.getQuantity());
@@ -91,8 +113,16 @@ public class CartService {
             throw new BadRequestException("Quantity must be >= 1");
         }
 
+
+
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
+
+        if (item.getProductCombo() != null) {
+            item.setQuantity(dto.getQuantity());
+            cartItemRepository.save(item);
+            return getCurrentCart(userId);
+        }
 
         // ownership check
         Long ownerId = item.getCart().getUser().getId();
@@ -200,6 +230,32 @@ public class CartService {
         int totalItems = 0;
 
         for (CartItem item : cart.getItems()) {
+
+            if (item.getProductCombo() != null) {
+
+                ProductCombo combo = item.getProductCombo();
+
+                BigDecimal unitPrice = BigDecimal.valueOf(combo.getComboPrice());
+                int qty = item.getQuantity();
+                BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(qty));
+
+                CartItemResponseDTO dto = new CartItemResponseDTO();
+                dto.setProductId(combo.getId());
+                dto.setProductName(combo.getName());
+                dto.setProductImage(null); // có thể thêm image cho combo
+                dto.setUnitPrice(unitPrice);
+                dto.setQuantity(qty);
+                dto.setTotalPrice(totalPrice);
+                dto.setAttributes(List.of()); // combo không có attributes
+
+                itemDTOs.add(dto);
+
+                subTotal = subTotal.add(totalPrice);
+                totalItems += qty;
+
+                continue;
+            }
+
             ProductVariant v = item.getProductVariant();
             List<CartVariantAttributeDTO> attrDTOs =
                     v.getAttributes().stream()

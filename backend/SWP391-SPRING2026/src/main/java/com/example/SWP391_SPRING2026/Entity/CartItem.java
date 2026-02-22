@@ -37,6 +37,10 @@ public class CartItem {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_combo_id")
+    private ProductCombo productCombo;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

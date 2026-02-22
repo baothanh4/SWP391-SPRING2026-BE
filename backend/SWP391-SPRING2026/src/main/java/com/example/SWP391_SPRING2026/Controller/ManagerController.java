@@ -1,16 +1,12 @@
 package com.example.SWP391_SPRING2026.Controller;
 
-import com.example.SWP391_SPRING2026.DTO.Request.ProductRequestDTO;
-import com.example.SWP391_SPRING2026.DTO.Request.ProductVariantRequestDTO;
-import com.example.SWP391_SPRING2026.DTO.Request.VariantAttributeImageListRequestDTO;
-import com.example.SWP391_SPRING2026.DTO.Request.VariantAttributeRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Request.*;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
-import com.example.SWP391_SPRING2026.Service.ProductService;
-import com.example.SWP391_SPRING2026.Service.ProductVariantService;
-import com.example.SWP391_SPRING2026.Service.VariantAttributeImageService;
-import com.example.SWP391_SPRING2026.Service.VariantAttributeService;
+import com.example.SWP391_SPRING2026.Entity.ProductCombo;
+import com.example.SWP391_SPRING2026.Service.*;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +24,7 @@ public class ManagerController {
     private final ProductVariantService productVariantService;
     private final VariantAttributeService variantAttributeService;
     private final VariantAttributeImageService  variantAttributeImageService;
+    private final ProductComboService comboService;
     // ===================== PRODUCT =====================
 
     @PostMapping("/products")
@@ -117,5 +114,15 @@ public class ManagerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttributeImages(@PathVariable Long imageId) {
         variantAttributeImageService.deleteImage(imageId);
+    }
+
+    @PostMapping("/combos")
+    public ProductCombo create(@Valid @RequestBody CreateComboRequestDTO dto){
+        return comboService.createCombo(dto);
+    }
+
+    @DeleteMapping("/combos/{id}")
+    public void deactive(@PathVariable Long id){
+        comboService.deactivateCombo(id);
     }
 }

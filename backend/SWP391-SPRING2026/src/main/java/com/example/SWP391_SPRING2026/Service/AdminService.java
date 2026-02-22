@@ -58,7 +58,7 @@ public class AdminService {
         user.setDob(request.getDob());
 
 
-        user.setStatus(UserStatus.ACTIVE);
+        user.setStatus(UserStatus.ACTIVED);
         user.setRole(request.getRole());
 
         return mapToResponse(userRepository.save(user));
