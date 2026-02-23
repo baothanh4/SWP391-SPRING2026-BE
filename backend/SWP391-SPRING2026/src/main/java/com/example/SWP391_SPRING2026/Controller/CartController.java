@@ -15,6 +15,7 @@ import com.example.SWP391_SPRING2026.mapper.OrderMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -28,11 +29,13 @@ public class CartController {
     private final CheckoutService checkoutService;
 
     @GetMapping
+    @ResponseStatus(HttpStatus.OK)
     public CartResponseDTO getCart(@AuthenticationPrincipal UserPrincipal principal) {
         return cartService.getCurrentCart(principal.getUserId());
     }
 
     @PostMapping("/add")
+    @ResponseStatus(HttpStatus.CREATED)
     public CartResponseDTO addToCart(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody AddToCartDTO dto
@@ -41,6 +44,7 @@ public class CartController {
     }
 
     @PutMapping("/items/{itemId}")
+    @ResponseStatus(HttpStatus.OK)
     public CartResponseDTO updateItem(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long itemId,
@@ -50,6 +54,7 @@ public class CartController {
     }
 
     @DeleteMapping("/items/{itemId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public CartResponseDTO removeItem(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long itemId
@@ -58,6 +63,7 @@ public class CartController {
     }
 
     @PutMapping("/summary")
+    @ResponseStatus(HttpStatus.OK)
     public CartResponseDTO updateSummary(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody CartSummaryUpdateDTO dto
@@ -66,11 +72,13 @@ public class CartController {
     }
 
     @DeleteMapping("/clear")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public CartResponseDTO clearCart(@AuthenticationPrincipal UserPrincipal principal) {
         return cartService.clearCart(principal.getUserId());
     }
 
     @PostMapping("/checkout")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<CheckoutResponseDTO> checkout(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody CheckoutRequestDTO dto,

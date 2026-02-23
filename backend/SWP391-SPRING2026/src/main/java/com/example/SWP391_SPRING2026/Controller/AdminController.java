@@ -30,12 +30,14 @@ public class AdminController {
 
 
     @PostMapping("/users")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<AdminUserResponse> createUser(@Valid @RequestBody UserCreateReq request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createUser(request));
     }
 
 
     @GetMapping("/users")
+    @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<Page<AdminUserResponse>> getUsers(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UserRole role,
@@ -47,12 +49,14 @@ public class AdminController {
 
 
     @GetMapping("/users/{id}")
+    @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<AdminUserResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(adminService.getById(id));
     }
 
 
     @PutMapping("/users/{id}")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<AdminUserResponse> updateById(
             @PathVariable Long id,
             @Valid @RequestBody UserUpdateReq request
@@ -62,6 +66,7 @@ public class AdminController {
 
 
     @PatchMapping("/users/{id}/status")
+    @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<AdminUserResponse> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody UserStatusReq req,
@@ -73,6 +78,7 @@ public class AdminController {
 
 
     @DeleteMapping("/users/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<?> disable(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal

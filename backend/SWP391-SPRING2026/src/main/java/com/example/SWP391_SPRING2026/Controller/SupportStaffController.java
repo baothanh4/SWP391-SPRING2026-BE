@@ -7,6 +7,7 @@ import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ public class SupportStaffController {
 
     // 1️⃣ Danh sách đơn chờ support duyệt
     @GetMapping("/waiting")
+    @ResponseStatus(HttpStatus.OK)
     public Page<Order> getWaitingOrders(Pageable pageable) {
         return orderRepository.findByOrderStatus(
                 OrderStatus.WAITING_CONFIRM,
@@ -28,6 +30,7 @@ public class SupportStaffController {
 
     // 2️⃣ Confirm đơn (Support duyệt)
     @PostMapping("/{orderId}/confirm")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<String> confirmOrder(
             @PathVariable Long orderId) {
 
@@ -47,6 +50,7 @@ public class SupportStaffController {
 
     // 3️⃣ Support hủy đơn
     @PostMapping("/{orderId}/cancel")
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<String> cancelOrder(
             @PathVariable Long orderId) {
 

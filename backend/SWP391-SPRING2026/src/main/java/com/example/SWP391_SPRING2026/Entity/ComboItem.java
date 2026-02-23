@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class ComboItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "combo_id")
+    @JsonIgnore
     private ProductCombo combo;
 
     @ManyToOne(fetch = FetchType.LAZY)

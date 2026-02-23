@@ -24,6 +24,10 @@ public class OrderItems {
     @JoinColumn(name = "product_variant_id", nullable = false)
     private ProductVariant productVariant;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_combo_id",nullable = true)
+    private ProductCombo productCombo;
+
     private Integer quantity;
     private Long price;
 
