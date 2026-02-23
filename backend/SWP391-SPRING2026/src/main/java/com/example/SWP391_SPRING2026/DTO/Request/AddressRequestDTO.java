@@ -30,10 +30,10 @@ public class AddressRequestDTO {
     @NotBlank(message = "Province name is required")
     private String province;
 
-    @NotNull(message = "District ID is required")
-    @Positive(message = "District ID must be positive")
-    private Integer districtId;
-
-    @NotBlank(message = "Ward code is required")
-    private String wardCode;
+//    @NotNull(message = "District ID is required")
+//    @Positive(message = "District ID must be positive")
+//    private Integer districtId;
+//
+//    @NotBlank(message = "Ward code is required")
+//    private String wardCode;
 }

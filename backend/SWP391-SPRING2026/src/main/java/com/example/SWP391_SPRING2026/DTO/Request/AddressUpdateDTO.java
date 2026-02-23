@@ -24,8 +24,8 @@ public class AddressUpdateDTO {
 
     private String province;
 
-    @Positive(message = "District ID must be positive")
-    private Integer districtId;
-
-    private String wardCode;
+//    @Positive(message = "District ID must be positive")
+//    private Integer districtId;
+//
+//    private String wardCode;
 }

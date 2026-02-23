@@ -34,8 +34,8 @@ public class AddressService {
         address.setWard(dto.getWard());
         address.setDistrict(dto.getDistrict());
         address.setProvince(dto.getProvince());
-        address.setDistrictId(dto.getDistrictId());
-        address.setWardCode(dto.getWardCode());
+        address.setDistrictId(1454);
+        address.setWardCode("21211");
         address.setIsDefault(!hasAddress);
 
         return AddressMapper.toDTO(addressRepository.save(address));
@@ -75,13 +75,6 @@ public class AddressService {
             address.setProvince(dto.getProvince());
         }
 
-        if(dto.getDistrictId()!=null){
-            address.setDistrictId(dto.getDistrictId());
-        }
-
-        if(dto.getWardCode()!=null){
-            address.setWardCode(dto.getWardCode());
-        }
 
         return AddressMapper.toDTO(addressRepository.save(address));
     }
