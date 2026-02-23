@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Request.*;
+import com.example.SWP391_SPRING2026.DTO.Response.ProductComboResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
@@ -8,7 +9,12 @@ import com.example.SWP391_SPRING2026.Entity.ProductCombo;
 import com.example.SWP391_SPRING2026.Service.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +40,7 @@ public class ManagerController {
     }
 
     @PutMapping("/products/{id}")
+    @ResponseStatus(HttpStatus.CREATED)
     public ProductResponseDTO updateProduct(
             @PathVariable Long id,
             @RequestBody ProductRequestDTO dto) {
@@ -69,6 +76,7 @@ public class ManagerController {
     }
 
     @PutMapping("/variants/{variantId}")
+    @ResponseStatus(HttpStatus.CREATED)
     public ProductVariantResponseDTO updateVariant(
             @PathVariable Long variantId,
             @RequestBody ProductVariantRequestDTO dto) {
@@ -92,6 +100,7 @@ public class ManagerController {
     }
 
     @PutMapping("/attributes/{attributeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateAttribute(
             @PathVariable Long attributeId,
             @RequestBody VariantAttributeRequestDTO dto) {
@@ -117,12 +126,33 @@ public class ManagerController {
     }
 
     @PostMapping("/combos")
-    public ProductCombo create(@Valid @RequestBody CreateComboRequestDTO dto){
-        return comboService.createCombo(dto);
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<ProductComboResponseDTO> createCombo(@RequestBody CreateComboRequestDTO dto){
+        return ResponseEntity.ok(comboService.createCombo(dto));
     }
 
+    @GetMapping("/combos/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public ProductComboResponseDTO getCombo(@PathVariable Long id){
+        return comboService.getComboById(id);
+    }
     @DeleteMapping("/combos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactive(@PathVariable Long id){
         comboService.deactivateCombo(id);
+    }
+
+    @PutMapping("/combos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<ProductComboResponseDTO> updateCombo(@PathVariable(name = "id")Long id, @RequestBody CreateComboRequestDTO dto){
+        return ResponseEntity.ok(comboService.updateCombo(id, dto));
+    }
+
+    @GetMapping("/combos")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<Page<ProductComboResponseDTO>> getAllCombos(@RequestParam(defaultValue = "0")int page,
+                                                                      @RequestParam(defaultValue = "10")int size){
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(comboService.getAllActiveCombos(pageable));
     }
 }

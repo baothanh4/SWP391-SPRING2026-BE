@@ -45,11 +45,25 @@ public class CheckoutService {
 
         // ===== XÁC ĐỊNH SALE TYPE =====
         SaleType saleType = null;
+
         for (CartItem item : cart.getItems()) {
-            SaleType itemType = item.getProductVariant().getSaleType();
-            if (saleType == null) saleType = itemType;
-            else if (saleType != itemType) {
-                throw new BadRequestException("Cannot checkout mixed products");
+
+            if (item.getProductVariant() != null) {
+
+                SaleType itemType = item.getProductVariant().getSaleType();
+
+                if (saleType == null) saleType = itemType;
+                else if (saleType != itemType) {
+                    throw new BadRequestException("Cannot checkout mixed products");
+                }
+
+            } else if (item.getProductCombo() != null) {
+
+                // 🔥 Combo luôn được coi là IN_STOCK
+                if (saleType == null) saleType = SaleType.IN_STOCK;
+                else if (saleType != SaleType.IN_STOCK) {
+                    throw new BadRequestException("Cannot checkout mixed products");
+                }
             }
         }
 
@@ -71,42 +85,73 @@ public class CheckoutService {
         // ===== CREATE ORDER ITEMS =====
         for (CartItem cartItem : cart.getItems()) {
 
-            ProductVariant variant = productVariantRepository
-                    .lockById(cartItem.getProductVariant().getId())
-                    .orElseThrow(() -> new BadRequestException("Variant not found"));
-
             int quantity = cartItem.getQuantity();
-            long price = variant.getPrice().longValue();
 
-            if (saleType == SaleType.IN_STOCK) {
-                if (variant.getStockQuantity() < quantity) {
-                    throw new BadRequestException("Insufficient stock");
+            // ================= PRODUCT =================
+            if (cartItem.getProductVariant() != null) {
+
+                ProductVariant variant = productVariantRepository
+                        .lockById(cartItem.getProductVariant().getId())
+                        .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+                long price = variant.getPrice().longValue();
+
+                if (saleType == SaleType.IN_STOCK) {
+                    if (variant.getStockQuantity() < quantity) {
+                        throw new BadRequestException("Insufficient stock");
+                    }
+                    variant.setStockQuantity(
+                            variant.getStockQuantity() - quantity
+                    );
                 }
-                variant.setStockQuantity(
-                        variant.getStockQuantity() - quantity
-                );
+
+                OrderItems orderItem = new OrderItems();
+                orderItem.setOrder(order);
+                orderItem.setProductVariant(variant);
+                orderItem.setQuantity(quantity);
+                orderItem.setPrice(price);
+                orderItem.setIsCombo(false);
+
+                orderItemRepository.save(orderItem);
+
+                totalAmount += price * quantity;
             }
 
-            OrderItems orderItem = new OrderItems();
-            orderItem.setOrder(order);
-            orderItem.setProductVariant(variant);
-            orderItem.setQuantity(quantity);
-            orderItem.setPrice(price);
-            orderItem.setIsCombo(false);
+            // ================= COMBO =================
+            else if (cartItem.getProductCombo() != null) {
 
-            orderItemRepository.save(orderItem);
+                ProductCombo combo = cartItem.getProductCombo();
 
-            totalAmount += price * quantity;
+                long comboPrice = combo.getComboPrice().longValue();
 
-            if (saleType == SaleType.PRE_ORDER) {
-                PreOrder preOrder = new PreOrder();
-                preOrder.setOrder(order);
-                preOrder.setProductVariant(variant);
-                preOrder.setExpectedReleaseDate(LocalDate.now().plusMonths(1));
-                preOrder.setDepositAmount(price * quantity * 30 / 100);
-                preOrder.setPreorderStatus(PreOrderStatus.WAITING);
+                OrderItems orderItem = new OrderItems();
+                orderItem.setOrder(order);
+                orderItem.setProductCombo(combo);
+                orderItem.setQuantity(quantity);
+                orderItem.setPrice(comboPrice);
+                orderItem.setIsCombo(true);
 
-                preOrderRepository.save(preOrder);
+                orderItemRepository.save(orderItem);
+
+                totalAmount += comboPrice * quantity;
+
+                // 🔥 Trừ stock từng variant trong combo
+                for (ComboItem comboItem : combo.getItems()) {
+
+                    ProductVariant variant = productVariantRepository
+                            .lockById(comboItem.getProductVariant().getId())
+                            .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+                    int required = comboItem.getQuantity() * quantity;
+
+                    if (variant.getStockQuantity() < required) {
+                        throw new BadRequestException("Insufficient stock in combo");
+                    }
+
+                    variant.setStockQuantity(
+                            variant.getStockQuantity() - required
+                    );
+                }
             }
         }
 
