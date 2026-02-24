@@ -2,6 +2,7 @@ package com.example.SWP391_SPRING2026.Entity;
 
 
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +10,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "products")
@@ -38,5 +41,6 @@ public class Product {
             cascade = CascadeType.ALL,
             orphanRemoval = true,
             fetch = FetchType.LAZY)
-    private List<ProductVariant> variants=new ArrayList<>();
+    @JsonIgnore
+    private Set<ProductVariant> variants=new HashSet<>();
 }

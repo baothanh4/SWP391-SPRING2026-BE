@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Entity;
 
 import com.example.SWP391_SPRING2026.Enum.SaleType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +10,9 @@ import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "product_variants")
@@ -34,8 +37,9 @@ public class ProductVariant {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnore
     private Product product;
 
     @OneToMany(mappedBy = "productVariant",cascade = CascadeType.ALL,orphanRemoval = true)
-    private List<VariantAttribute> attributes=new ArrayList<>();
+    private Set<VariantAttribute> attributes=new HashSet<>();
 }

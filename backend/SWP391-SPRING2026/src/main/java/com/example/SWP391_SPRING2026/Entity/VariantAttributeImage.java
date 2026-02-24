@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -21,5 +22,6 @@ public class VariantAttributeImage {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_attribute_id")
+    @JsonIgnore
     private VariantAttribute variantAttribute;
 }
