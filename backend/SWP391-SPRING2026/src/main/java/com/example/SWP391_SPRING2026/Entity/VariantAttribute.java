@@ -1,12 +1,15 @@
 package com.example.SWP391_SPRING2026.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "variant_attributes")
@@ -23,6 +26,7 @@ public class VariantAttribute {
 
     @ManyToOne
     @JoinColumn(name = "product_variant_id")
+    @JsonIgnore
     private ProductVariant productVariant;
 
     @OneToMany(
@@ -30,5 +34,5 @@ public class VariantAttribute {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
-    private List<VariantAttributeImage> images = new ArrayList<>();
+    private Set<VariantAttributeImage> images = new HashSet<>();
 }
