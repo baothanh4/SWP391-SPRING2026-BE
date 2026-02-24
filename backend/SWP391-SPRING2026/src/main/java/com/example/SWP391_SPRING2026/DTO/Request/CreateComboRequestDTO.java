@@ -15,10 +15,6 @@ public class CreateComboRequestDTO {
 
     private String description;
 
-    @NotNull
-    @Min(0)
-    private Long comboPrice;
-
     @NotEmpty
     private List<ComboItemRequestDTO> items;
 }

@@ -30,13 +30,18 @@ public class ProductComboService {
         ProductCombo combo =new  ProductCombo();
         combo.setName(dto.getName());
         combo.setDescription(dto.getDescription());
-        combo.setComboPrice(dto.getComboPrice());
         combo.setActive(true);
         combo.setItems(new ArrayList<>());
 
+
+        long totalOriginalPrice = 0;
         for(ComboItemRequestDTO itemDTO : dto.getItems()){
             ProductVariant variant = productVariantRepository.findById(itemDTO.getVariantId()).orElseThrow(() -> new ResourceNotFoundException("Variant not found : "+itemDTO.getVariantId()));
 
+            int quantity = itemDTO.getQuantity();
+            long price = variant.getPrice().longValue();
+
+            totalOriginalPrice += price * quantity;
             ComboItem comboItem = new ComboItem();
             comboItem.setCombo(combo);
             comboItem.setProductVariant(variant);
@@ -44,6 +49,8 @@ public class ProductComboService {
 
             combo.getItems().add(comboItem);
         }
+        long comboPrice = totalOriginalPrice * 60 /100;
+        combo.setComboPrice(comboPrice);
 
         ProductCombo saved = productComboRepository.save(combo);
 
@@ -56,12 +63,17 @@ public class ProductComboService {
 
         combo.setName(dto.getName());
         combo.setDescription(dto.getDescription());
-        combo.setComboPrice(dto.getComboPrice());
 
         combo.getItems().clear();
 
+        long totalOriginalPrice = 0;
+
         for(ComboItemRequestDTO itemDTO : dto.getItems()){
             ProductVariant variant = productVariantRepository.findById(itemDTO.getVariantId()).orElseThrow(()->new ResourceNotFoundException("Variant not found : "+itemDTO.getVariantId()));
+
+            int quantity = itemDTO.getQuantity();
+            long price = variant.getPrice().longValue();
+            totalOriginalPrice += price * quantity;
 
             ComboItem comboItem = new ComboItem();
             comboItem.setCombo(combo);
@@ -70,6 +82,8 @@ public class ProductComboService {
 
             combo.getItems().add(comboItem);
         }
+        long comboPrice = totalOriginalPrice * 60 /100;
+        combo.setComboPrice(comboPrice);
         return toDTO(productComboRepository.save(combo));
     }
 
