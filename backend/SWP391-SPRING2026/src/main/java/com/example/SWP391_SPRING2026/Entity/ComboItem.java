@@ -3,25 +3,29 @@ package com.example.SWP391_SPRING2026.Entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "variant_attribute_images")
+@Table(name = "combo_items")
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
-public class VariantAttributeImage {
+@NoArgsConstructor
+@Builder
+public class ComboItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String imageUrl;
-
-    private Integer sortOrder;
+    private Integer quantity;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "variant_attribute_id")
+    @JoinColumn(name = "combo_id")
     @JsonIgnore
-    private VariantAttribute variantAttribute;
+    private ProductCombo combo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_variant_id")
+    private ProductVariant productVariant;
 }

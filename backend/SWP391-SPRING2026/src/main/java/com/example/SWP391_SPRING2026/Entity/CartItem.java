@@ -25,7 +25,7 @@ public class CartItem {
 
     // IMPORTANT: project bạn để price/stock ở variant
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_variant_id", nullable = false)
+    @JoinColumn(name = "product_variant_id", nullable = true)
     private ProductVariant productVariant;
 
     @Column(nullable = false)
@@ -36,6 +36,10 @@ public class CartItem {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_combo_id", nullable = true)
+    private ProductCombo productCombo;
 
     @PrePersist
     protected void onCreate() {

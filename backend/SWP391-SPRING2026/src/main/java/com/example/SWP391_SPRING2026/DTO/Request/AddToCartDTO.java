@@ -8,8 +8,10 @@ import lombok.Data;
 public class AddToCartDTO {
     private Long productVariantId;
     private Long productId;
-
+    private Long productComboId;
     @NotNull
     @Min(1)
     private Integer quantity;
+
+
 }

@@ -10,9 +10,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.SWP391_SPRING2026.Utility.DepositPolicy;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.example.SWP391_SPRING2026.Entity.OrderPayment;
+import com.example.SWP391_SPRING2026.Enum.PaymentStage;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +31,10 @@ public class CheckoutService {
     private final ShipmentRepository shipmentRepository;
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
+    private Long depositAmount; // optional, chỉ dùng cho PRE_ORDER
+    private final OrderPaymentRepository orderPaymentRepository;
+
+
 
     public CheckoutResponseDTO checkout(Long userId,
                                         CheckoutRequestDTO dto,
@@ -45,11 +52,25 @@ public class CheckoutService {
 
         // ===== XÁC ĐỊNH SALE TYPE =====
         SaleType saleType = null;
+
         for (CartItem item : cart.getItems()) {
-            SaleType itemType = item.getProductVariant().getSaleType();
-            if (saleType == null) saleType = itemType;
-            else if (saleType != itemType) {
-                throw new BadRequestException("Cannot checkout mixed products");
+
+            if (item.getProductVariant() != null) {
+
+                SaleType itemType = item.getProductVariant().getSaleType();
+
+                if (saleType == null) saleType = itemType;
+                else if (saleType != itemType) {
+                    throw new BadRequestException("Cannot checkout mixed products");
+                }
+
+            } else if (item.getProductCombo() != null) {
+
+                // 🔥 Combo luôn được coi là IN_STOCK
+                if (saleType == null) saleType = SaleType.IN_STOCK;
+                else if (saleType != SaleType.IN_STOCK) {
+                    throw new BadRequestException("Cannot checkout mixed products");
+                }
             }
         }
 
@@ -71,55 +92,105 @@ public class CheckoutService {
         // ===== CREATE ORDER ITEMS =====
         for (CartItem cartItem : cart.getItems()) {
 
-            ProductVariant variant = productVariantRepository
-                    .lockById(cartItem.getProductVariant().getId())
-                    .orElseThrow(() -> new BadRequestException("Variant not found"));
-
             int quantity = cartItem.getQuantity();
-            long price = variant.getPrice().longValue();
 
-            if (saleType == SaleType.IN_STOCK) {
-                if (variant.getStockQuantity() < quantity) {
-                    throw new BadRequestException("Insufficient stock");
+            // ================= PRODUCT =================
+            if (cartItem.getProductVariant() != null) {
+
+                ProductVariant variant = productVariantRepository
+                        .lockById(cartItem.getProductVariant().getId())
+                        .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+                long price = variant.getPrice().longValue();
+
+                if (saleType == SaleType.IN_STOCK) {
+                    if (variant.getStockQuantity() < quantity) {
+                        throw new BadRequestException("Insufficient stock");
+                    }
+                    variant.setStockQuantity(
+                            variant.getStockQuantity() - quantity
+                    );
                 }
-                variant.setStockQuantity(
-                        variant.getStockQuantity() - quantity
-                );
+
+                OrderItems orderItem = new OrderItems();
+                orderItem.setOrder(order);
+                orderItem.setProductVariant(variant);
+                orderItem.setQuantity(quantity);
+                orderItem.setPrice(price);
+                orderItem.setIsCombo(false);
+
+                orderItemRepository.save(orderItem);
+
+                totalAmount += price * quantity;
             }
 
-            OrderItems orderItem = new OrderItems();
-            orderItem.setOrder(order);
-            orderItem.setProductVariant(variant);
-            orderItem.setQuantity(quantity);
-            orderItem.setPrice(price);
-            orderItem.setIsCombo(false);
+            // ================= COMBO =================
+            else if (cartItem.getProductCombo() != null) {
 
-            orderItemRepository.save(orderItem);
+                ProductCombo combo = cartItem.getProductCombo();
 
-            totalAmount += price * quantity;
+                long comboPrice = combo.getComboPrice().longValue();
 
-            if (saleType == SaleType.PRE_ORDER) {
-                PreOrder preOrder = new PreOrder();
-                preOrder.setOrder(order);
-                preOrder.setProductVariant(variant);
-                preOrder.setExpectedReleaseDate(LocalDate.now().plusMonths(1));
-                preOrder.setDepositAmount(price * quantity * 30 / 100);
-                preOrder.setPreorderStatus(PreOrderStatus.WAITING);
+                OrderItems orderItem = new OrderItems();
+                orderItem.setOrder(order);
+                orderItem.setProductCombo(combo);
+                orderItem.setQuantity(quantity);
+                orderItem.setPrice(comboPrice);
+                orderItem.setIsCombo(true);
 
-                preOrderRepository.save(preOrder);
+                orderItemRepository.save(orderItem);
+
+                totalAmount += comboPrice * quantity;
+
+                // 🔥 Trừ stock từng variant trong combo
+                for (ComboItem comboItem : combo.getItems()) {
+
+                    ProductVariant variant = productVariantRepository
+                            .lockById(comboItem.getProductVariant().getId())
+                            .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+                    int required = comboItem.getQuantity() * quantity;
+
+                    if (variant.getStockQuantity() < required) {
+                        throw new BadRequestException("Insufficient stock in combo");
+                    }
+
+                    variant.setStockQuantity(
+                            variant.getStockQuantity() - required
+                    );
+                }
             }
         }
 
         order.setTotalAmount(totalAmount);
 
-        long payableAmount =
-                saleType == SaleType.PRE_ORDER
-                        ? totalAmount * 30 / 100
-                        : totalAmount;
+// ===== PAYABLE / DEPOSIT FOR PRE_ORDER =====
+        long payableAmount;
 
         if (saleType == SaleType.PRE_ORDER) {
-            order.setDeposit(payableAmount);
-            order.setRemainingAmount(totalAmount - payableAmount);
+
+            long minDeposit = DepositPolicy.minDeposit(totalAmount);
+
+            Long requestedDeposit = dto.getDepositAmount();
+            long depositToPay = (requestedDeposit == null) ? minDeposit : requestedDeposit;
+
+            try {
+                DepositPolicy.validate(totalAmount, depositToPay);
+            } catch (IllegalArgumentException ex) {
+                throw new BadRequestException(ex.getMessage());
+            }
+
+            order.setDeposit(depositToPay);
+            order.setRemainingAmount(totalAmount - depositToPay);
+
+            payableAmount = depositToPay;
+
+        } else {
+            // IN_STOCK: không cho nhập depositAmount
+            if (dto.getDepositAmount() != null) {
+                throw new BadRequestException("depositAmount is only applicable for PRE_ORDER");
+            }
+            payableAmount = totalAmount;
         }
 
         // ===== CREATE PAYMENT =====
@@ -128,14 +199,57 @@ public class CheckoutService {
         payment.setMethod(dto.getPaymentMethod());
         payment.setAmount(payableAmount);
 
-        if (dto.getPaymentMethod() == PaymentMethod.COD) {
-            payment.setStatus(PaymentStatus.UNPAID);
-        } else {
-            payment.setStatus(PaymentStatus.PENDING);
+        // - PRE_ORDER nếu trả cọc (< total) thì cọc nên trả online (VNPAY). COD chỉ hợp lý cho phần còn lại.
+// - PRE_ORDER trả 100% thì method có thể COD hoặc VNPAY (tuỳ bạn muốn siết thêm hay không).
+        if (saleType == SaleType.PRE_ORDER) {
+            long depositToPay = payableAmount; // payableAmount đã là deposit hoặc full sau khi bạn chỉnh DepositPolicy
+
+            if (depositToPay < totalAmount && dto.getPaymentMethod() == PaymentMethod.COD) {
+                throw new BadRequestException("For PRE_ORDER, deposit must be paid online (VNPAY). COD is for remaining.");
+            }
+
+            // remaining method default COD nếu FE không gửi
+            PaymentMethod remainingMethod =
+                    dto.getRemainingPaymentMethod() == null ? PaymentMethod.COD : dto.getRemainingPaymentMethod();
+            order.setRemainingPaymentMethod(remainingMethod);
         }
 
-        paymentRepository.save(payment);
-        order.setPayment(payment);
+// 1) Initial payment record (FULL hoặc DEPOSIT)
+        OrderPayment initialPayment = new OrderPayment();
+        initialPayment.setOrder(order);
+
+        PaymentStage initialStage;
+        if (saleType == SaleType.IN_STOCK) initialStage = PaymentStage.FULL;
+        else initialStage = (payableAmount == totalAmount) ? PaymentStage.FULL : PaymentStage.DEPOSIT;
+
+        initialPayment.setStage(initialStage);
+        initialPayment.setMethod(dto.getPaymentMethod());
+        initialPayment.setAmount(payableAmount);
+
+        if (dto.getPaymentMethod() == PaymentMethod.COD) {
+            initialPayment.setStatus(PaymentStatus.UNPAID);
+        } else {
+            initialPayment.setStatus(PaymentStatus.PENDING);
+        }
+        initialPayment.setCreatedAt(LocalDateTime.now());
+        orderPaymentRepository.save(initialPayment);
+
+// 2) Nếu PRE_ORDER còn lại và remaining = COD => tạo record REMAINING COD để thu khi giao
+        if (saleType == SaleType.PRE_ORDER) {
+            long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
+            if (remaining > 0 && order.getRemainingPaymentMethod() == PaymentMethod.COD) {
+
+                OrderPayment remainingCOD = new OrderPayment();
+                remainingCOD.setOrder(order);
+                remainingCOD.setStage(PaymentStage.REMAINING);
+                remainingCOD.setMethod(PaymentMethod.COD);
+                remainingCOD.setAmount(remaining);
+                remainingCOD.setStatus(PaymentStatus.UNPAID);
+                remainingCOD.setCreatedAt(LocalDateTime.now());
+
+                orderPaymentRepository.save(remainingCOD);
+            }
+        }
 
         // ===== CREATE SHIPMENT =====
         Shipment shipment = new Shipment();
@@ -159,7 +273,7 @@ public class CheckoutService {
 
             try {
                 paymentUrl = vnPayService.createVNPayUrl(
-                        order.getId().toString(),
+                        initialPayment.getId().toString(),
                         payableAmount,
                         ipAddress
                 );

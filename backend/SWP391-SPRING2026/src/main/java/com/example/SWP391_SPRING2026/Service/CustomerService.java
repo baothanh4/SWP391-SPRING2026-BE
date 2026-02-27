@@ -23,6 +23,7 @@ public class CustomerService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final OrderRepository orderRepository;
+    private final OrderCancellationService orderCancellationService;
 
 
     public CustomerAccountResponseDTO getProfile(Long userId){
@@ -74,35 +75,8 @@ public class CustomerService {
     }
 
     @Transactional
-    public void cancelOrderByCustomer(Long userId,Long orderId){
-        Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
-
-        if(!order.getAddress().getUser().getId().equals(userId)){
-            throw new BadRequestException("You are not allowed to cancel this order");
-        }
-
-        if(order.getOrderStatus() !=  OrderStatus.WAITING_CONFIRM){
-            throw new BadRequestException("Order cannot be cancelled");
-        }
-
-        order.setOrderStatus(OrderStatus.CANCELLED);
-
-        if(order.getOrderType() == OrderType.IN_STOCK){
-            for(OrderItems item : order.getOrderItems()){
-                ProductVariant variant = item.getProductVariant();
-                variant.setStockQuantity(variant.getStockQuantity() + item.getQuantity());
-            }
-        }
-
-
-        if (order.getPayment() != null) {
-            order.getPayment().setStatus(PaymentStatus.CANCELLED);
-        }
-
-        // 6️⃣ Update Shipment
-        if (order.getShipment() != null) {
-            order.getShipment().setStatus(ShipmentStatus.CANCELLED);
-        }
+    public void cancelOrderByCustomer(Long userId, Long orderId){
+        orderCancellationService.cancelByCustomer(userId, orderId);
     }
 
 
@@ -118,4 +92,5 @@ public class CustomerService {
                 u.getCreateAt()
         );
     }
+
 }

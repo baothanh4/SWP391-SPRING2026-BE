@@ -88,16 +88,15 @@ public class GhnService {
         CreateGhnOrderRequest request = new CreateGhnOrderRequest();
 
         // ===== PAYMENT =====
-        if (order.getPayment().getMethod() == PaymentMethod.COD) {
+        Long cod = (order.getShipment() != null) ? order.getShipment().getCodAmount() : null;
+
+        if (cod != null && cod > 0) {
             request.setPayment_type_id(2);
-            request.setCod_amount(order.getRemainingAmount().intValue());
+            request.setCod_amount(cod.intValue());
         } else {
             request.setPayment_type_id(1);
             request.setCod_amount(0);
         }
-
-        request.setNote("Giao giờ hành chính");
-        request.setRequired_note("KHONGCHOXEMHANG");
 
         // ===== SHOP INFO (HARDCODE DEMO) =====
         request.setFrom_name("SWP391 Shop");

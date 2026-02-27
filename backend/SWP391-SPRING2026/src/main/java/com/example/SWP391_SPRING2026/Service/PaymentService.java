@@ -11,6 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.SWP391_SPRING2026.Entity.OrderPayment;
+import com.example.SWP391_SPRING2026.Repository.OrderPaymentRepository;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -22,6 +24,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
+    private final OrderPaymentRepository orderPaymentRepository;
 
     private static final String SECRET_KEY =
             "4LTI2QLZGKBVC0HB79O3K437RSDFJDJJ";
@@ -81,29 +84,25 @@ public class PaymentService {
             return "http://localhost:5173/payment-result?status=invalid";
         }
 
-        String orderId = params.get("vnp_TxnRef");
+        String paymentIdStr = params.get("vnp_TxnRef");
 
-        Order order = orderRepository.findById(Long.parseLong(orderId))
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-
-        Payment payment = order.getPayment();
+        OrderPayment pay = orderPaymentRepository.findById(Long.parseLong(paymentIdStr))
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
 
         if ("00".equals(params.get("vnp_ResponseCode"))) {
 
-            payment.setStatus(PaymentStatus.SUCCESS);
-            payment.setTransactionCode(params.get("vnp_TransactionNo"));
-            payment.setPaidAt(LocalDateTime.now());
+            pay.setStatus(PaymentStatus.SUCCESS);
+            pay.setTransactionCode(params.get("vnp_TransactionNo"));
+            pay.setPaidAt(LocalDateTime.now());
 
         } else {
-
-            payment.setStatus(PaymentStatus.FAILED);
+            pay.setStatus(PaymentStatus.FAILED);
         }
 
-        paymentRepository.save(payment);
+        orderPaymentRepository.save(pay);
 
         return "http://localhost:5173/payment-result?status="
-                + payment.getStatus().name().toLowerCase();
+                + pay.getStatus().name().toLowerCase();
+
     }
-
-
 }
