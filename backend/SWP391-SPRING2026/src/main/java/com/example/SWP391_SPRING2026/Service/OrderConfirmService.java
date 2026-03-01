@@ -4,11 +4,13 @@ import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.Shipment;
 import com.example.SWP391_SPRING2026.Enum.*;
+import com.example.SWP391_SPRING2026.Repository.OrderPaymentRepository;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.ShipmentRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 
 import java.time.LocalDateTime;
 
@@ -20,6 +22,7 @@ public class OrderConfirmService {
     private final OrderRepository orderRepository;
     private final ShipmentRepository shipmentRepository;
     private final GhnService ghnService;
+    private final OrderPaymentRepository orderPaymentRepository;
 
     // =========================================================
     // OPERATION CONFIRM ORDER → CREATE GHN
@@ -96,13 +99,15 @@ public class OrderConfirmService {
             case DELIVERED -> {
                 shipment.setDeliveredAt(LocalDateTime.now());
 
-                if (payment != null &&
-                        payment.getMethod() == PaymentMethod.COD) {
-
-                    payment.setStatus(PaymentStatus.PAID);
-                    payment.setPaidAt(LocalDateTime.now());
-                    shipment.setCodCollected(true);
+                // mark all COD unpaid payments as PAID
+                var pays = orderPaymentRepository.findByOrder_Id(order.getId());
+                for (var p : pays) {
+                    if (p.getMethod() == PaymentMethod.COD && p.getStatus() == PaymentStatus.UNPAID) {
+                        p.setStatus(PaymentStatus.PAID);
+                        p.setPaidAt(LocalDateTime.now());
+                    }
                 }
+                shipment.setCodCollected(true);
 
                 order.setOrderStatus(OrderStatus.COMPLETED);
             }

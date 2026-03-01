@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
 
 
 @Entity
@@ -19,6 +20,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
+    @Enumerated(EnumType.STRING)
+    @Column(name = "remaining_payment_method")
+    private PaymentMethod remainingPaymentMethod;
+
+    @OneToMany(
+            mappedBy = "order",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @JsonIgnore
+    private List<OrderPayment> orderPayments = new ArrayList<>();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
