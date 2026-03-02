@@ -28,7 +28,9 @@ public class OrderCancellationService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        if (!order.getAddress().getUser().getId().equals(userId)) {
+        if (order.getAddress() == null
+                || order.getAddress().getUser() == null
+                || !order.getAddress().getUser().getId().equals(userId)) {
             throw new BadRequestException("You are not allowed to cancel this order");
         }
 
@@ -69,9 +71,21 @@ public class OrderCancellationService {
 
     // STAFF cancel: tạo refund request FULL_REFUND (record thôi)
     @Transactional
-    public void cancelByStaff(Long staffId, String role, Long orderId, RefundReason reason, String note) {
+    public void cancelByStaff(Long staffId, String role,
+                              Long orderId,
+                              RefundReason reason,
+                              String note) {
+
+        if (!"SUPPORT_STAFF".equals(role)) {
+            throw new BadRequestException("Access denied");
+        }
+
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (order.getOrderStatus() == OrderStatus.CANCELLED) {
+            throw new BadRequestException("Order already cancelled");
+        }
 
         if (order.getOrderStatus() == OrderStatus.COMPLETED) {
             throw new BadRequestException("Completed order cannot be cancelled");
@@ -88,14 +102,28 @@ public class OrderCancellationService {
         }
 
         long paidAmount = resolvePaidAmount(order.getPayment());
+
         if (order.getPayment() != null && !isPaid(order.getPayment().getStatus())) {
             order.getPayment().setStatus(PaymentStatus.CANCELLED);
         }
 
         if (paidAmount > 0) {
-            RefundReason safeReason = (reason == null) ? RefundReason.SHOP_CANNOT_SUPPLY : reason;
-            createRefundRequest(order, safeReason, RefundPolicy.FULL_REFUND,
-                    paidAmount, staffId, role, note == null ? "Staff cancel" : note);
+
+            if (refundRequestRepository.existsByOrderIdAndStatus(
+                    order.getId(),
+                    RefundRequestStatus.REQUESTED)) {
+                throw new BadRequestException("Refund already requested");
+            }
+
+            createRefundRequest(
+                    order,
+                    reason == null ? RefundReason.SHOP_CANNOT_SUPPLY : reason,
+                    RefundPolicy.FULL_REFUND,
+                    paidAmount,
+                    staffId,
+                    role,
+                    note
+            );
         }
     }
 

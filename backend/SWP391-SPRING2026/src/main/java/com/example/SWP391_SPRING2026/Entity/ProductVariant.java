@@ -40,6 +40,6 @@ public class ProductVariant {
     @JsonIgnore
     private Product product;
 
-    @OneToMany(mappedBy = "productVariant",cascade = CascadeType.ALL,orphanRemoval = true)
-    private Set<VariantAttribute> attributes=new HashSet<>();
+    @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<VariantAttribute> attributes = new ArrayList<>();
 }

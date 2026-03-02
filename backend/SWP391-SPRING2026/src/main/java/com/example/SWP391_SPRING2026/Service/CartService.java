@@ -16,6 +16,7 @@ import com.example.SWP391_SPRING2026.Repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import jakarta.persistence.EntityManager;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -32,13 +33,14 @@ public class CartService {
     private final UserRepository userRepository;
     private final ProductVariantRepository productVariantRepository;
     private final ProductComboRepository  productComboRepository;
-
+    private final EntityManager entityManager;
 
     public CartResponseDTO getCurrentCart(Long userId) {
-        Cart cart = getOrCreateActiveCart(userId);
-        // fetch join để hạn chế N+1
-        Cart full = cartRepository.findCartWithItems(userId, CartStatus.ACTIVE).orElse(cart);
-        return mapToResponse(full);
+        Cart cart = cartRepository
+                .findCartWithItems(userId, CartStatus.ACTIVE)
+                .orElseGet(() -> getOrCreateActiveCart(userId));
+
+        return mapToResponse(cart);
     }
 
     public CartResponseDTO addToCart(Long userId, AddToCartDTO dto) {
@@ -67,6 +69,10 @@ public class CartService {
             }
 
             cartItemRepository.save(item);
+
+            entityManager.flush();
+            entityManager.clear();
+
             return getCurrentCart(userId);
         }
 
@@ -104,6 +110,8 @@ public class CartService {
         }
 
         cartItemRepository.save(item);
+        entityManager.flush();
+        entityManager.clear();
         return getCurrentCart(userId);
     }
 
@@ -136,6 +144,9 @@ public class CartService {
         item.setQuantity(dto.getQuantity());
         cartItemRepository.save(item);
 
+        entityManager.flush();
+        entityManager.clear();
+
         return getCurrentCart(userId);
     }
 
@@ -149,6 +160,9 @@ public class CartService {
         }
 
         cartItemRepository.delete(item);
+
+        entityManager.flush();
+        entityManager.clear();
         return getCurrentCart(userId);
     }
 
@@ -169,13 +183,19 @@ public class CartService {
         }
 
         cartRepository.save(cart);
+
+        entityManager.flush();
+        entityManager.clear();
         return getCurrentCart(userId);
     }
 
     public CartResponseDTO clearCart(Long userId) {
         Cart cart = getOrCreateActiveCart(userId);
-        cartItemRepository.deleteByCartId(cart.getId());
+
         cart.getItems().clear();
+
+        entityManager.flush();
+        entityManager.clear();
         return getCurrentCart(userId);
     }
 
@@ -224,29 +244,33 @@ public class CartService {
     }
 
     private CartResponseDTO mapToResponse(Cart cart) {
-        List<CartItemResponseDTO> itemDTOs = new ArrayList<>();
 
+        List<CartItemResponseDTO> itemDTOs = new ArrayList<>();
         BigDecimal subTotal = BigDecimal.ZERO;
         int totalItems = 0;
 
-        for (CartItem item : cart.getItems()) {
+        // Copy list để tránh Hibernate concurrent issue
+        List<CartItem> safeItems = new ArrayList<>(cart.getItems());
 
+        for (CartItem item : safeItems) {
+
+            // ================= COMBO =================
             if (item.getProductCombo() != null) {
 
                 ProductCombo combo = item.getProductCombo();
 
                 BigDecimal unitPrice = BigDecimal.valueOf(combo.getComboPrice());
-                int qty = item.getQuantity();
+                int qty = safeQty(item.getQuantity());
                 BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(qty));
 
                 CartItemResponseDTO dto = new CartItemResponseDTO();
                 dto.setProductId(combo.getId());
                 dto.setProductName(combo.getName());
-                dto.setProductImage(null); // có thể thêm image cho combo
+                dto.setProductImage(null);
                 dto.setUnitPrice(unitPrice);
                 dto.setQuantity(qty);
                 dto.setTotalPrice(totalPrice);
-                dto.setAttributes(List.of()); // combo không có attributes
+                dto.setAttributes(List.of());
 
                 itemDTOs.add(dto);
 
@@ -256,55 +280,84 @@ public class CartService {
                 continue;
             }
 
+            // ================= VARIANT =================
             ProductVariant v = item.getProductVariant();
-            List<CartVariantAttributeDTO> attrDTOs =
-                    v.getAttributes().stream()
-                            .map(attr -> {
-                                CartVariantAttributeDTO adto = new CartVariantAttributeDTO();
-                                adto.setAttributeName(attr.getAttributeName());
-                                adto.setAttributeValue(attr.getAttributeValue());
-
-                                adto.setImages(
-                                        attr.getImages().stream()
-                                                .sorted(Comparator.comparing(VariantAttributeImage::getSortOrder))
-                                                .map(VariantAttributeImage::getImageUrl)
-                                                .toList()
-                                );
-                                return adto;
-                            })
-                            .toList();
+            if (v == null) continue;
 
             Product p = v.getProduct();
 
-            BigDecimal unitPrice = v.getPrice() == null ? BigDecimal.ZERO : v.getPrice();
-            int qty = item.getQuantity() == null ? 0 : item.getQuantity();
+            BigDecimal unitPrice = v.getPrice() == null
+                    ? BigDecimal.ZERO
+                    : v.getPrice();
+
+            int qty = safeQty(item.getQuantity());
             BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(qty));
 
-            CartItemResponseDTO dto = new CartItemResponseDTO();
-            dto.setProductId(p != null ? p.getId() : null);
-            dto.setProductName(p != null ? p.getName() : null);
+            // SAFE copy attributes
+            List<CartVariantAttributeDTO> attrDTOs = new ArrayList<>();
+
+            if (v.getAttributes() != null) {
+
+                List<VariantAttribute> safeAttrs =
+                        new ArrayList<>(v.getAttributes());
+
+                for (VariantAttribute attr : safeAttrs) {
+
+                    CartVariantAttributeDTO adto =
+                            new CartVariantAttributeDTO();
+
+                    adto.setAttributeName(attr.getAttributeName());
+                    adto.setAttributeValue(attr.getAttributeValue());
+
+                    // SAFE copy images
+                    List<String> imageUrls = new ArrayList<>();
+
+                    if (attr.getImages() != null) {
+
+                        List<VariantAttributeImage> safeImages =
+                                new ArrayList<>(attr.getImages());
+
+                        safeImages.sort(
+                                Comparator.comparing(
+                                        VariantAttributeImage::getSortOrder,
+                                        Comparator.nullsLast(Integer::compareTo)
+                                )
+                        );
+
+                        for (VariantAttributeImage img : safeImages) {
+                            imageUrls.add(img.getImageUrl());
+                        }
+                    }
+
+                    adto.setImages(imageUrls);
+                    attrDTOs.add(adto);
+                }
+            }
 
             String displayImage = attrDTOs.stream()
                     .flatMap(a -> a.getImages().stream())
                     .findFirst()
                     .orElse(p != null ? p.getProductImage() : null);
 
+            CartItemResponseDTO dto = new CartItemResponseDTO();
+            dto.setProductId(p != null ? p.getId() : null);
+            dto.setProductName(p != null ? p.getName() : null);
             dto.setProductImage(displayImage);
             dto.setUnitPrice(unitPrice);
             dto.setQuantity(qty);
             dto.setTotalPrice(totalPrice);
-
             dto.setAttributes(attrDTOs);
+
             itemDTOs.add(dto);
 
             subTotal = subTotal.add(totalPrice);
             totalItems += qty;
-
-
         }
 
         BigDecimal discount = calculateDiscount(subTotal, cart.getCouponCode());
-        if (discount.compareTo(subTotal) > 0) discount = subTotal;
+        if (discount.compareTo(subTotal) > 0) {
+            discount = subTotal;
+        }
 
         BigDecimal finalTotal = subTotal.subtract(discount);
 
@@ -322,6 +375,10 @@ public class CartService {
         res.setEmpty(itemDTOs.isEmpty());
 
         return res;
+    }
+
+    private int safeQty(Integer qty) {
+        return qty == null ? 0 : qty;
     }
 
     private BigDecimal calculateDiscount(BigDecimal subTotal, String couponCode) {

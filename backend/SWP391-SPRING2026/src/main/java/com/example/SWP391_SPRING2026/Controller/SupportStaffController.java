@@ -54,20 +54,6 @@ public class SupportStaffController {
         return ResponseEntity.ok("Order confirmed by support");
     }
 
-    // 3️⃣ Support hủy đơn
-    @PostMapping("/{orderId}/cancel")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<String> cancelOrder(
-            @PathVariable Long orderId) {
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow();
-
-        order.setOrderStatus(OrderStatus.CANCELLED);
-        orderRepository.save(order);
-        return ResponseEntity.ok("Order cancelled by support");
-    }
-
     @PostMapping("/{orderId}/cancel")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<String> cancelOrder(

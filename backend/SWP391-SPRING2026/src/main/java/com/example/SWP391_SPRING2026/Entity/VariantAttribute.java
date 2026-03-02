@@ -34,5 +34,5 @@ public class VariantAttribute {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
-    private Set<VariantAttributeImage> images = new HashSet<>();
+    private List<VariantAttributeImage> images = new ArrayList<>();
 }

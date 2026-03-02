@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface RefundRequestRepository extends JpaRepository<RefundRequest, Long> {
     List<RefundRequest> findByStatus(RefundRequestStatus status);
+    Boolean existsByOrderIdAndStatus(Long orderId, RefundRequestStatus status);
 }

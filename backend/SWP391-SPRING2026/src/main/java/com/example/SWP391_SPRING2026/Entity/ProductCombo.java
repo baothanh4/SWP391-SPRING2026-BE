@@ -7,7 +7,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "product_combos")
@@ -28,6 +30,6 @@ public class ProductCombo {
 
     private Boolean active = true;
 
-    @OneToMany(mappedBy = "combo",cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "combo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ComboItem> items = new ArrayList<>();
 }
