@@ -3,9 +3,7 @@ package com.example.SWP391_SPRING2026.Entity;
 import com.example.SWP391_SPRING2026.Enum.SaleType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
@@ -16,7 +14,8 @@ import java.util.Set;
 
 @Entity
 @Table(name = "product_variants")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @BatchSize(size = 50)

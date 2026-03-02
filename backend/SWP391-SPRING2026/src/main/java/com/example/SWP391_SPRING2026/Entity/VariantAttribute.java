@@ -2,9 +2,7 @@ package com.example.SWP391_SPRING2026.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -13,7 +11,8 @@ import java.util.Set;
 
 @Entity
 @Table(name = "variant_attributes")
-@Data
+@Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 public class VariantAttribute {

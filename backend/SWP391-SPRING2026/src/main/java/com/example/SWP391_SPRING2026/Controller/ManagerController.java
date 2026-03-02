@@ -5,11 +5,14 @@ import com.example.SWP391_SPRING2026.DTO.Response.ProductComboResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
+import com.example.SWP391_SPRING2026.Entity.ProductCombo;
 import com.example.SWP391_SPRING2026.Service.*;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -46,8 +49,8 @@ public class ManagerController {
 
     @DeleteMapping("/products/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
+    public void deactivateProduct(@PathVariable Long id) {
+        productService.deactivateProduct(id);
     }
 
     // ===================== VARIANT =====================

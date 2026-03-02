@@ -63,12 +63,11 @@ public class ProductService {
         return toDTO(product);
     }
 
-    @Transactional
-    public void deleteProduct(Long productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+    public void deactivateProduct(Long productId){
+        Product product = productRepository.findById(productId).orElseThrow(() ->new RuntimeException("Product not found"));
 
-        productRepository.delete(product);
+        product.setStatus(ProductStatus.INACTIVE);
+        productRepository.save(product);
     }
 
     private ProductResponseDTO toDTO(Product product){

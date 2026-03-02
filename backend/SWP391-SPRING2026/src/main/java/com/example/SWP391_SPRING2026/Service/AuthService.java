@@ -44,7 +44,8 @@ public class AuthService {
                 user.getId(),
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user),
-                user.getRole()
+                user.getRole(),
+                user.getFullName()
         );
     }
 
