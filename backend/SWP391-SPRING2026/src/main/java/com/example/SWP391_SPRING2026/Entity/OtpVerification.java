@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -14,6 +15,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OtpVerification {
+
+    private String phone;
+
+    private String passwordHash;
+
+    private String fullName;
+
+    private LocalDate dob;
+
+    private Integer gender;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
