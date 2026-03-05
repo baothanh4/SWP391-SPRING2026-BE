@@ -33,6 +33,8 @@ public class CreateGhnOrderRequest {
     private Integer height;
     private Integer service_type_id;
 
+
+
     private List<Item> items;
 
     @Data

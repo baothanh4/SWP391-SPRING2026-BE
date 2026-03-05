@@ -17,7 +17,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,64 +27,93 @@ public class ProductComboService {
     private final ProductComboRepository productComboRepository;
     private final ProductVariantRepository  productVariantRepository;
     private static final int DISCOUNT_PERCENT = 40;
+
+
     @Transactional
     public ProductComboResponseDTO createCombo(CreateComboRequestDTO dto){
-        ProductCombo combo =new  ProductCombo();
+        ProductCombo combo = new ProductCombo();
         combo.setName(dto.getName());
         combo.setDescription(dto.getDescription());
         combo.setActive(true);
-        combo.setItems(new ArrayList<>());
 
-
+        List<ComboItem> items = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
 
         for(ComboItemRequestDTO itemDTO : dto.getItems()){
-            ProductVariant variant = productVariantRepository.findById(itemDTO.getVariantId()).orElseThrow(() -> new ResourceNotFoundException("Variant not found : "+itemDTO.getVariantId()));
+            ProductVariant variant = productVariantRepository.findById(itemDTO.getVariantId()).orElseThrow(() -> new ResourceNotFoundException("Variant not found: "+ itemDTO.getVariantId()));
 
-            int quantity = itemDTO.getQuantity();
-            long price = variant.getPrice().longValue();
+            BigDecimal price = variant.getPrice();
+            BigDecimal quantity = BigDecimal.valueOf(itemDTO.getQuantity());
 
+            total = total.add(price.multiply(quantity));
 
             ComboItem comboItem = new ComboItem();
             comboItem.setCombo(combo);
             comboItem.setProductVariant(variant);
             comboItem.setQuantity(itemDTO.getQuantity());
 
-            combo.getItems().add(comboItem);
+            items.add(comboItem);
         }
-        long comboPrice = calculateComboPrice(dto);
-        combo.setComboPrice(comboPrice);
 
-        ProductCombo saved = productComboRepository.save(combo);
+        BigDecimal discountMultiplier = BigDecimal
+                .valueOf(100 - DISCOUNT_PERCENT)
+                .divide(BigDecimal.valueOf(100));
+        
+        BigDecimal finalPrice = total.multiply(discountMultiplier);
 
-        return toDTO(saved);
+        combo.setComboPrice(finalPrice.longValue());
+        combo.setItems(items);
+
+        return toDTO(productComboRepository.save(combo));
     }
 
     @Transactional
-    public ProductComboResponseDTO updateCombo(Long comboId,CreateComboRequestDTO dto){
-        ProductCombo combo = productComboRepository.findById(comboId).orElseThrow(() -> new ResourceNotFoundException("Combo not found : "+comboId));
+    public ProductComboResponseDTO updateCombo(Long comboId, CreateComboRequestDTO dto){
+
+        ProductCombo combo = productComboRepository.findById(comboId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Combo not found: " + comboId)
+                );
 
         combo.setName(dto.getName());
         combo.setDescription(dto.getDescription());
 
         combo.getItems().clear();
 
+        List<ComboItem> newItems = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
 
         for(ComboItemRequestDTO itemDTO : dto.getItems()){
-            ProductVariant variant = productVariantRepository.findById(itemDTO.getVariantId()).orElseThrow(()->new ResourceNotFoundException("Variant not found : "+itemDTO.getVariantId()));
 
-            int quantity = itemDTO.getQuantity();
-            long price = variant.getPrice().longValue();
+            ProductVariant variant = productVariantRepository
+                    .findById(itemDTO.getVariantId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Variant not found: " + itemDTO.getVariantId()
+                            )
+                    );
+
+            BigDecimal price = variant.getPrice();
+            BigDecimal quantity = BigDecimal.valueOf(itemDTO.getQuantity());
+
+            total = total.add(price.multiply(quantity));
 
             ComboItem comboItem = new ComboItem();
             comboItem.setCombo(combo);
             comboItem.setProductVariant(variant);
             comboItem.setQuantity(itemDTO.getQuantity());
 
-            combo.getItems().add(comboItem);
+            newItems.add(comboItem);
         }
-        long comboPrice = calculateComboPrice(dto);
-        combo.setComboPrice(comboPrice);
-        return toDTO(productComboRepository.save(combo));
+
+        BigDecimal discountMultiplier = BigDecimal
+                .valueOf(100 - DISCOUNT_PERCENT)
+                .divide(BigDecimal.valueOf(100));
+
+        combo.setComboPrice(total.multiply(discountMultiplier).longValue());
+        combo.setItems(newItems);
+
+        return toDTO(combo);
     }
 
     public Page<ProductComboResponseDTO> getAllActiveCombos(Pageable pageable){

@@ -6,9 +6,11 @@ import com.example.SWP391_SPRING2026.DTO.Request.ChangePasswordDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CustomerAccountResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.AddressResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.PaymentHistoryResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.AddressService;
 import com.example.SWP391_SPRING2026.Service.CustomerService;
+import com.example.SWP391_SPRING2026.Service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,7 +30,7 @@ public class CustomerController {
 
     private final AddressService addressService;
     private final CustomerService customerService;
-
+    private final PaymentService paymentService;
 
     @PostMapping("/addresses")
     @ResponseStatus(HttpStatus.CREATED)
@@ -106,5 +108,11 @@ public class CustomerController {
     public ResponseEntity<String> cancelOrder(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long orderId){
         customerService.cancelOrderByCustomer(principal.getUserId(), orderId);
         return ResponseEntity.ok("Order Cancelled");
+    }
+
+    @GetMapping("/payments")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<List<PaymentHistoryResponseDTO>> getAllPayments(@AuthenticationPrincipal UserPrincipal principal){
+        return ResponseEntity.ok(paymentService.getPaymentHistory(principal.getUserId()));
     }
 }

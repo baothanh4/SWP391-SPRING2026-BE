@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Service;
 
+import com.example.SWP391_SPRING2026.DTO.Response.PaymentHistoryResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -110,5 +112,23 @@ public class PaymentService {
 
         return "http://localhost:5173/payment-result?status="
                 + payment.getStatus().name().toLowerCase();
+    }
+
+    @Transactional
+    public List<PaymentHistoryResponseDTO> getPaymentHistory(Long userId){
+        List<Payment> payments = paymentRepository.findByUserId(userId);
+
+        return payments.stream()
+                .map(p -> new PaymentHistoryResponseDTO(
+                        p.getId(),
+                        p.getOrder().getOrderCode(),
+                        p.getStage(),
+                        p.getMethod(),
+                        p.getStatus(),
+                        p.getAmount(),
+                        p.getTransactionCode(),
+                        p.getCreatedAt(),
+                        p.getPaidAt()
+                )).toList();
     }
 }

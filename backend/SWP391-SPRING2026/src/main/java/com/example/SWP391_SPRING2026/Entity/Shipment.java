@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Random;
+import java.util.UUID;
 
 @Entity
 @Table(name = "shipments")
@@ -18,10 +20,10 @@ import java.time.LocalDateTime;
 public class Shipment {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @MapsId // ✅ dùng chung ID với Order
     @JoinColumn(name = "order_id")
     private Order order;
 
@@ -41,4 +43,22 @@ public class Shipment {
 
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
+
+    @PrePersist
+    public void generateCode(){
+        if(this.ghnOrderCode == null){
+            this.ghnOrderCode = generateRandomCode(14);
+        }
+    }
+
+    private String generateRandomCode(int length){
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        Random random = new Random();
+        StringBuilder code = new StringBuilder();
+
+        for(int i = 0; i < length; i++){
+            code.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return code.toString();
+    }
 }
