@@ -106,14 +106,14 @@ public class AuthService {
         // Dọn rác bug cũ: nếu có user INACTIVE chiếm email/phone thì xóa để đăng ký lại không bị duplicate
         Users byEmail = userRepository.findByEmail(request.getEmail()).orElse(null);
         if (byEmail != null) {
-            if (byEmail.getStatus() == UserStatus.ACTIVED)
+            if (byEmail.getStatus() == UserStatus.ACTIVE)
                 throw new DuplicateResourceException("EMAIL_EXISTS", "Email already exists");
             userRepository.delete(byEmail);
         }
 
         Users byPhone = userRepository.findByPhone(request.getPhone()).orElse(null);
         if (byPhone != null) {
-            if (byPhone.getStatus() == UserStatus.ACTIVED)
+            if (byPhone.getStatus() == UserStatus.ACTIVE)
                 throw new DuplicateResourceException("PHONE_EXISTS", "Phone already exists");
             // tránh delete 2 lần nếu trùng record
             if (byEmail == null || !byPhone.getId().equals(byEmail.getId())) {
@@ -163,11 +163,11 @@ public class AuthService {
 
         // chống trùng do race
         Users existedEmail = userRepository.findByEmail(email).orElse(null);
-        if (existedEmail != null && existedEmail.getStatus() == UserStatus.ACTIVED) {
+        if (existedEmail != null && existedEmail.getStatus() == UserStatus.ACTIVE) {
             throw new DuplicateResourceException("EMAIL_EXISTS", "Email already exists");
         }
         Users existedPhone = userRepository.findByPhone(pending.getPhone()).orElse(null);
-        if (existedPhone != null && existedPhone.getStatus() == UserStatus.ACTIVED) {
+        if (existedPhone != null && existedPhone.getStatus() == UserStatus.ACTIVE) {
             throw new DuplicateResourceException("PHONE_EXISTS", "Phone already exists");
         }
 
@@ -179,7 +179,7 @@ public class AuthService {
         user.setGender(pending.getGender());
         user.setPassword(pending.getPasswordHash());
         user.setRole(UserRole.CUSTOMER);
-        user.setStatus(UserStatus.ACTIVED);
+        user.setStatus(UserStatus.ACTIVE);
 
         userRepository.save(user);
 
@@ -191,7 +191,7 @@ public class AuthService {
         email = email.trim().toLowerCase();
 
         Users user = userRepository.findByEmail(email).orElse(null);
-        if (user != null && user.getStatus() == UserStatus.ACTIVED) {
+        if (user != null && user.getStatus() == UserStatus.ACTIVE) {
             throw new BadRequestException("Account is already activated");
         }
 
