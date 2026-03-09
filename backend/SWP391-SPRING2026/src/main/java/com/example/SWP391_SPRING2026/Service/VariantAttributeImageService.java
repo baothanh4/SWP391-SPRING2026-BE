@@ -61,7 +61,6 @@ public class VariantAttributeImageService {
         image.setImageUrl(dto.getImageUrl());
         image.setSortOrder(dto.getSortOrder());
 
-        variantAttributeImageRepository.save(image);
     }
 
     public void deleteImage(Long imageId){
