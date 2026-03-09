@@ -184,4 +184,11 @@ public class ManagerController {
         preOrderService.markStockArrived(variantId, dto.getArrivedQuantity());
         return ResponseEntity.ok("Pre-order stock arrival processed");
     }
+
+    @PostMapping("/preorders/variants/{variantId}/allocate-current-stock")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<String> allocateCurrentStockForPreorders(@PathVariable Long variantId) {
+        preOrderService.allocateAvailableStock(variantId);
+        return ResponseEntity.ok("Current stock allocated to preorder queue");
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Response.PayRemainingResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.RemainingPaymentStatusResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
@@ -27,6 +28,27 @@ public class CustomerOrderPaymentController {
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
     private final PreOrderService preOrderService;
+
+    @GetMapping("/{orderId}/remaining-payment-status")
+    public RemainingPaymentStatusResponseDTO getRemainingPaymentStatus(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long orderId
+    ) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!order.getAddress().getUser().getId().equals(principal.getUserId())) {
+            throw new BadRequestException("You are not allowed to view this order");
+        }
+
+        return new RemainingPaymentStatusResponseDTO(
+                order.getId(),
+                order.getOrderStatus(),
+                order.getRemainingAmount() == null ? 0L : order.getRemainingAmount(),
+                preOrderService.isRemainingPaymentOpened(orderId),
+                preOrderService.getStatuses(orderId)
+        );
+    }
 
     @PostMapping("/{orderId}/pay-remaining")
     @Transactional

@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
 @RequestMapping("/api/payment")
@@ -15,10 +16,8 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @GetMapping("/vnpay-return")
-    public String vnpayReturn(HttpServletRequest request) {
-
-        System.out.println("VNPAY RETURN CALLED");
-
-        return paymentService.handleVnpayReturn(request);
+    public RedirectView vnpayReturn(HttpServletRequest request) {
+        String redirectUrl = paymentService.handleVnpayReturn(request);
+        return new RedirectView(redirectUrl);
     }
 }
