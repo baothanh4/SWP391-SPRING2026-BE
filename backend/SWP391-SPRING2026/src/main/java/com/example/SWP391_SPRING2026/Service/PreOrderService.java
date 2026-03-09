@@ -16,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -90,13 +88,6 @@ public class PreOrderService {
         return !lines.isEmpty();
     }
 
-    public Set<PreOrderStatus> getStatuses(Long orderId) {
-        return preOrderRepository.findByOrder_Id(orderId)
-                .stream()
-                .map(PreOrder::getPreorderStatus)
-                .collect(Collectors.toSet());
-    }
-
     public void markRemainingPaid(Long orderId) {
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(orderId);
         for (PreOrder line : lines) {
@@ -165,13 +156,6 @@ public class PreOrderService {
 
         int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
         variant.setStockQuantity(stock + arrivedQty);
-
-        allocateAvailableStock(variantId);
-    }
-
-    public void allocateAvailableStock(Long variantId) {
-        ProductVariant variant = productVariantRepository.lockById(variantId)
-                .orElseThrow(() -> new BadRequestException("Variant not found"));
 
         List<PreOrder> queue = preOrderRepository.lockQueueByVariant(
                 variantId,
