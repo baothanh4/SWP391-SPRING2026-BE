@@ -66,21 +66,22 @@ public class AdminService {
 
 
     @Transactional(readOnly = true)
-    public Page<AdminUserResponse> listUsers(String keyword, UserRole role, UserStatus status, Pageable pageable) {
+    public Page<AdminUserResponse> listUsers(UserRole role,
+                                             UserStatus status,
+                                             Pageable pageable) {
 
         Specification<Users> spec = (root, query, cb) -> cb.conjunction();
 
-        if (StringUtils.hasText(keyword)) {
-            spec = spec.and(UserSpecifications.keywordContains(keyword));
-        }
         if (role != null) {
             spec = spec.and(UserSpecifications.hasRole(role));
         }
+
         if (status != null) {
             spec = spec.and(UserSpecifications.hasStatus(status));
         }
 
-        return userRepository.findAll(spec, pageable).map(this::mapToResponse);
+        return userRepository.findAll(spec, pageable)
+                .map(this::mapToResponse);
     }
 
 

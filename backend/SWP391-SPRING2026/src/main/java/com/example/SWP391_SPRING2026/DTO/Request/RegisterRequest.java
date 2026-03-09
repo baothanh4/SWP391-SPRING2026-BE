@@ -29,6 +29,7 @@ public class RegisterRequest {
     @NotBlank(message = "Full name is required")
     private String fullName;
 
+    @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")
     private LocalDate dob;
 

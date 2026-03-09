@@ -7,6 +7,7 @@ import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +34,18 @@ public class ProductVariant {
     @Enumerated(EnumType.STRING)
     @Column(name = "sale_type",nullable = false)
     private SaleType saleType;
+
+    @Column(name = "allow_preorder", nullable = false)
+    private Boolean allowPreorder = false;
+
+    @Column(name = "preorder_limit")
+    private Integer preorderLimit;
+
+    @Column(name = "current_preorders", nullable = false)
+    private Integer currentPreorders = 0;
+
+    @Column(name = "preorder_fulfillment_date")
+    private LocalDate preorderFulfillmentDate;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)

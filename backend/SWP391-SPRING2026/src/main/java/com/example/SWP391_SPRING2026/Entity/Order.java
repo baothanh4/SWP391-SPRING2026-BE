@@ -2,6 +2,7 @@ package com.example.SWP391_SPRING2026.Entity;
 
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
 import com.example.SWP391_SPRING2026.Enum.OrderType;
+import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -11,8 +12,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
-
 
 @Entity
 @Table(name = "orders")
@@ -20,18 +19,6 @@ import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
-    @Enumerated(EnumType.STRING)
-    @Column(name = "remaining_payment_method")
-    private PaymentMethod remainingPaymentMethod;
-
-    @OneToMany(
-            mappedBy = "order",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true,
-            fetch = FetchType.LAZY
-    )
-    @JsonIgnore
-    private List<OrderPayment> orderPayments = new ArrayList<>();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -57,6 +44,10 @@ public class Order {
     @Column(name = "remaining_amount")
     private Long remainingAmount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "remaining_payment_method")
+    private PaymentMethod remainingPaymentMethod;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "address_id")
     private Address address;
@@ -64,14 +55,15 @@ public class Order {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @OneToOne(
+    // 🔥 MULTI PAYMENT RELATIONSHIP
+    @OneToMany(
             mappedBy = "order",
             cascade = CascadeType.ALL,
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
     @JsonIgnore
-    private Payment payment;
+    private List<Payment> payments = new ArrayList<>();
 
     @OneToOne(
             mappedBy = "order",

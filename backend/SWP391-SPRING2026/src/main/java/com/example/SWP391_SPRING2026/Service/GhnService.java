@@ -123,6 +123,8 @@ public class GhnService {
         request.setHeight(10);
         request.setService_type_id(2);
 
+        request.setRequired_note("CHOXEMHANGKHONGTHU");
+
         // ===== ITEMS =====
         List<CreateGhnOrderRequest.Item> items =
                 order.getOrderItems().stream().map(orderItem -> {
@@ -130,7 +132,26 @@ public class GhnService {
                     CreateGhnOrderRequest.Item item =
                             new CreateGhnOrderRequest.Item();
 
-                    item.setName(orderItem.getProductVariant().getProduct().getName());
+                    String name;
+
+                    if (orderItem.getProductVariant() != null) {
+
+                        name = orderItem.getProductVariant()
+                                .getProduct()
+                                .getName();
+
+                    } else if (orderItem.getProductCombo() != null) {
+
+                        name = orderItem.getProductCombo()
+                                .getName();
+
+                    } else {
+
+                        throw new RuntimeException("OrderItem invalid: no productVariant or combo");
+
+                    }
+
+                    item.setName(name);
                     item.setQuantity(orderItem.getQuantity());
                     item.setPrice(orderItem.getPrice().intValue());
 

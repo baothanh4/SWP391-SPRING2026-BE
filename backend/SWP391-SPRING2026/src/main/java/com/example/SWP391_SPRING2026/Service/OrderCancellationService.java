@@ -4,15 +4,14 @@ import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
-import com.example.SWP391_SPRING2026.Repository.OrderRepository;
-import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
-import com.example.SWP391_SPRING2026.Repository.RefundRequestRepository;
+import com.example.SWP391_SPRING2026.Repository.*;
 import com.example.SWP391_SPRING2026.Utility.RefundCalculator;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,16 +20,22 @@ public class OrderCancellationService {
     private final OrderRepository orderRepository;
     private final ProductVariantRepository productVariantRepository;
     private final RefundRequestRepository refundRequestRepository;
+    private final PaymentRepository paymentRepository;
 
-    // CUSTOMER cancel: chỉ cho WAITING_CONFIRM (đang đúng rule hiện tại của hệ thống)
+    // =========================================================
+    // CUSTOMER CANCEL
+    // =========================================================
     @Transactional
     public void cancelByCustomer(Long userId, Long orderId) {
+
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
+        // Check ownership
         if (order.getAddress() == null
                 || order.getAddress().getUser() == null
                 || !order.getAddress().getUser().getId().equals(userId)) {
+
             throw new BadRequestException("You are not allowed to cancel this order");
         }
 
@@ -38,40 +43,49 @@ public class OrderCancellationService {
             throw new BadRequestException("Order cannot be cancelled");
         }
 
-        // 1) update order status
         order.setOrderStatus(OrderStatus.CANCELLED);
 
-        // 2) hoàn stock nếu IN_STOCK
         if (order.getOrderType() == OrderType.IN_STOCK) {
             restockForInStockOrder(order);
         }
 
-        // 3) update shipment
         if (order.getShipment() != null) {
             order.getShipment().setStatus(ShipmentStatus.CANCELLED);
         }
 
-        // 4) payment: KHUNG (nếu chưa paid thì cancel; nếu đã paid thì giữ để trace)
-        long paidAmount = resolvePaidAmount(order.getPayment());
-        if (order.getPayment() != null && !isPaid(order.getPayment().getStatus())) {
-            order.getPayment().setStatus(PaymentStatus.CANCELLED);
-        }
+        long paidAmount = handlePayments(order.getId());
 
-        // 5) PRE_ORDER: tạo refund request theo policy “mất cọc” (record thôi)
+        // PRE_ORDER → mất cọc
         if (order.getOrderType() == OrderType.PRE_ORDER) {
+
             long deposit = order.getDeposit() == null ? 0L : order.getDeposit();
-            long refundAmount = RefundCalculator.calculate(paidAmount, deposit, RefundPolicy.DEPOSIT_FORFEIT);
+
+            long refundAmount = RefundCalculator.calculate(
+                    paidAmount,
+                    deposit,
+                    RefundPolicy.DEPOSIT_FORFEIT
+            );
 
             if (refundAmount > 0) {
-                createRefundRequest(order, RefundReason.CUSTOMER_CANCEL, RefundPolicy.DEPOSIT_FORFEIT,
-                        refundAmount, userId, "CUSTOMER", "Auto from customer cancel");
+                createRefundRequest(
+                        order,
+                        RefundReason.CUSTOMER_CANCEL,
+                        RefundPolicy.DEPOSIT_FORFEIT,
+                        refundAmount,
+                        userId,
+                        "CUSTOMER",
+                        "Auto from customer cancel"
+                );
             }
         }
     }
 
-    // STAFF cancel: tạo refund request FULL_REFUND (record thôi)
+    // =========================================================
+    // STAFF CANCEL
+    // =========================================================
     @Transactional
-    public void cancelByStaff(Long staffId, String role,
+    public void cancelByStaff(Long staffId,
+                              String role,
                               Long orderId,
                               RefundReason reason,
                               String note) {
@@ -101,17 +115,14 @@ public class OrderCancellationService {
             order.getShipment().setStatus(ShipmentStatus.CANCELLED);
         }
 
-        long paidAmount = resolvePaidAmount(order.getPayment());
-
-        if (order.getPayment() != null && !isPaid(order.getPayment().getStatus())) {
-            order.getPayment().setStatus(PaymentStatus.CANCELLED);
-        }
+        long paidAmount = handlePayments(order.getId());
 
         if (paidAmount > 0) {
 
             if (refundRequestRepository.existsByOrderIdAndStatus(
                     order.getId(),
                     RefundRequestStatus.REQUESTED)) {
+
                 throw new BadRequestException("Refund already requested");
             }
 
@@ -127,28 +138,60 @@ public class OrderCancellationService {
         }
     }
 
+    // =========================================================
+    // MULTI PAYMENT HANDLER (1–N SAFE)
+    // =========================================================
+    private long handlePayments(Long orderId) {
+
+        List<Payment> payments = paymentRepository.findByOrder_Id(orderId);
+
+        long paidAmount = 0L;
+
+        for (Payment p : payments) {
+
+            if (isPaid(p.getStatus())) {
+                paidAmount += p.getAmount() == null ? 0L : p.getAmount();
+            } else {
+                p.setStatus(PaymentStatus.CANCELLED);
+            }
+        }
+
+        return paidAmount;
+    }
+
+    // =========================================================
+    // RESTOCK
+    // =========================================================
     private void restockForInStockOrder(Order order) {
+
         for (OrderItems item : order.getOrderItems()) {
-            // nếu item là combo => hoàn từng variant trong combo
-            if (Boolean.TRUE.equals(item.getIsCombo()) && item.getProductCombo() != null) {
+
+            if (Boolean.TRUE.equals(item.getIsCombo())
+                    && item.getProductCombo() != null) {
+
                 ProductCombo combo = item.getProductCombo();
                 int orderQty = item.getQuantity() == null ? 0 : item.getQuantity();
 
                 for (ComboItem comboItem : combo.getItems()) {
-                    ProductVariant v = productVariantRepository
+
+                    ProductVariant variant = productVariantRepository
                             .lockById(comboItem.getProductVariant().getId())
                             .orElseThrow(() -> new BadRequestException("Variant not found"));
 
                     int required = comboItem.getQuantity() * orderQty;
-                    v.setStockQuantity(v.getStockQuantity() + required);
+                    variant.setStockQuantity(variant.getStockQuantity() + required);
                 }
+
             } else {
-                // item thường
-                ProductVariant v = item.getProductVariant();
-                if (v != null) {
+
+                ProductVariant variant = item.getProductVariant();
+
+                if (variant != null) {
+
                     int qty = item.getQuantity() == null ? 0 : item.getQuantity();
+
                     ProductVariant locked = productVariantRepository
-                            .lockById(v.getId())
+                            .lockById(variant.getId())
                             .orElseThrow(() -> new BadRequestException("Variant not found"));
 
                     locked.setStockQuantity(locked.getStockQuantity() + qty);
@@ -157,6 +200,7 @@ public class OrderCancellationService {
         }
     }
 
+    // =========================================================
     private void createRefundRequest(Order order,
                                      RefundReason reason,
                                      RefundPolicy policy,
@@ -178,19 +222,10 @@ public class OrderCancellationService {
         rr.setUpdatedAt(LocalDateTime.now());
 
         refundRequestRepository.save(rr);
-
-        // TODO: integrate VNPay refund later
     }
 
-    private long resolvePaidAmount(Payment payment) {
-        if (payment == null) return 0L;
-        if (isPaid(payment.getStatus())) {
-            return payment.getAmount() == null ? 0L : payment.getAmount();
-        }
-        return 0L;
-    }
-
-    private boolean isPaid(PaymentStatus st) {
-        return st == PaymentStatus.SUCCESS || st == PaymentStatus.PAID;
+    private boolean isPaid(PaymentStatus status) {
+        return status == PaymentStatus.SUCCESS
+                || status == PaymentStatus.PAID;
     }
 }

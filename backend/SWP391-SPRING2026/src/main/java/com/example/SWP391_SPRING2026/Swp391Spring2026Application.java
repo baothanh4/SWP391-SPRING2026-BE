@@ -3,8 +3,10 @@ package com.example.SWP391_SPRING2026;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 public class Swp391Spring2026Application {
 
 	public static void main(String[] args) {
@@ -19,5 +21,4 @@ public class Swp391Spring2026Application {
 
 		SpringApplication.run(Swp391Spring2026Application.class, args);
 	}
-
 }

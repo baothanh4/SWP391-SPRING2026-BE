@@ -37,6 +37,21 @@ public class EmailService {
         );
         mailSender.send(message);
     }
+    public void sendPreOrderRemainingPaymentEmail(String to,
+                                                  String orderCode,
+                                                  Long remainingAmount,
+                                                  java.time.LocalDate expectedDate) {
+        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+        message.setTo(to);
+        message.setSubject("Your pre-order stock has arrived");
+        message.setText(
+                "Order: " + orderCode + "\n" +
+                        "Expected date: " + expectedDate + "\n" +
+                        "Remaining amount: " + remainingAmount + " VND\n\n" +
+                        "Please complete the remaining payment so the order can move forward."
+        );
+        mailSender.send(message);
+    }
 
 
 

@@ -11,6 +11,7 @@ import com.example.SWP391_SPRING2026.Service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Sort;
@@ -37,14 +38,19 @@ public class AdminController {
 
 
     @GetMapping("/users")
-    @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<Page<AdminUserResponse>> getUsers(
-            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) UserStatus status,
-            @PageableDefault(size = 10, sort = "createAt", direction = Sort.Direction.DESC) Pageable pageable
+            @PageableDefault(size = 10) Pageable pageable
     ) {
-        return ResponseEntity.ok(adminService.listUsers(keyword, role, status, pageable));
+
+        Pageable safePageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createAt") // FIX cứng sort
+        );
+
+        return ResponseEntity.ok(adminService.listUsers(role, status, safePageable));
     }
 
 

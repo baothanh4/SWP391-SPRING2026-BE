@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import com.example.SWP391_SPRING2026.Entity.ReturnRequest;
 
 @Entity
 @Table(name = "refund_requests")
@@ -56,4 +57,9 @@ public class RefundRequest {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "return_request_id")
+    @JsonIgnore
+    private ReturnRequest returnRequest;
 }
