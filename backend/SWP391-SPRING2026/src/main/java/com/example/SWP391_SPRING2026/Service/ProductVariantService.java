@@ -19,6 +19,7 @@ public class ProductVariantService {
 
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final PreOrderService preOrderService;
 
     public ProductVariantResponseDTO create(Long productId, ProductVariantRequestDTO dto) {
         Product product = productRepository.findById(productId)
@@ -45,9 +46,12 @@ public class ProductVariantService {
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new RuntimeException("Product Variant Not Found"));
 
+        int oldStock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+        int newStock = dto.getStockQuantity() == null ? 0 : dto.getStockQuantity();
+
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
-        variant.setStockQuantity(dto.getStockQuantity());
+        variant.setStockQuantity(newStock);
         variant.setSaleType(dto.getSaleType());
 
         variant.setAllowPreorder(Boolean.TRUE.equals(dto.getAllowPreorder()));
@@ -55,6 +59,11 @@ public class ProductVariantService {
         variant.setPreorderFulfillmentDate(dto.getPreorderFulfillmentDate());
 
         productVariantRepository.save(variant);
+
+        if (newStock > oldStock) {
+            preOrderService.allocateAvailableStock(variantId);
+        }
+
         return toDTO(variant);
     }
 

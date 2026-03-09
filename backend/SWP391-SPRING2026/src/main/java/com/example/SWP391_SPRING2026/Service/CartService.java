@@ -17,6 +17,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
+import com.example.SWP391_SPRING2026.Enum.VariantAvailabilityStatus;
+import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -235,10 +237,38 @@ public class CartService {
             throw new ResourceNotFoundException("Product not available");
         }
 
-        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
-        if (requestedQty > stock) {
+        VariantAvailabilityStatus availability = VariantAvailabilityResolver.resolve(variant);
+
+        if (availability == VariantAvailabilityStatus.OUT_OF_STOCK) {
+            int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
             throw new InsufficientStockException(
                     "Insufficient stock. Requested=" + requestedQty + ", Available=" + stock
+            );
+        }
+
+        if (availability == VariantAvailabilityStatus.IN_STOCK) {
+            int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+            if (requestedQty > stock) {
+                throw new InsufficientStockException(
+                        "Insufficient stock. Requested=" + requestedQty + ", Available=" + stock
+                );
+            }
+            return;
+        }
+
+        // PRE_ORDER
+        int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
+        int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
+        int remainingSlots = Math.max(limit - current, 0);
+
+        if (remainingSlots <= 0) {
+            throw new BadRequestException("Pre-order slot is full");
+        }
+
+        if (requestedQty > remainingSlots) {
+            throw new BadRequestException(
+                    "Pre-order quantity exceeds remaining slots. Requested="
+                            + requestedQty + ", RemainingSlots=" + remainingSlots
             );
         }
     }

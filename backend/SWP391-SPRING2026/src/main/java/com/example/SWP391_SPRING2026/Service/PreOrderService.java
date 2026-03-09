@@ -5,7 +5,6 @@ import com.example.SWP391_SPRING2026.Entity.OrderItems;
 import com.example.SWP391_SPRING2026.Entity.PreOrder;
 import com.example.SWP391_SPRING2026.Entity.ProductVariant;
 import com.example.SWP391_SPRING2026.Enum.PreOrderStatus;
-import com.example.SWP391_SPRING2026.Enum.RefundRequestStatus;
 import com.example.SWP391_SPRING2026.Enum.VariantAvailabilityStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.PreOrderRepository;
@@ -169,7 +168,6 @@ public class PreOrderService {
                 break;
             }
 
-            // allocate stock for this preorder line
             variant.setStockQuantity(available - line.getQuantity());
             line.setAllocatedStock(true);
 

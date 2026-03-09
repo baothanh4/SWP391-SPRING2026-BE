@@ -6,9 +6,8 @@ import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
-import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
-import com.example.SWP391_SPRING2026.Service.PreOrderService;
+import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Service.VNPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -24,9 +23,8 @@ import java.time.LocalDateTime;
 public class CustomerOrderPaymentController {
 
     private final OrderRepository orderRepository;
-    private final PaymentRepository paymentRepository;
+    private final PaymentRepository orderPaymentRepository;
     private final VNPayService vnPayService;
-    private final PreOrderService preOrderService;
 
     @PostMapping("/{orderId}/pay-remaining")
     @Transactional
@@ -35,7 +33,6 @@ public class CustomerOrderPaymentController {
             @PathVariable Long orderId,
             HttpServletRequest request
     ) {
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
@@ -52,28 +49,27 @@ public class CustomerOrderPaymentController {
             throw new BadRequestException("No remaining amount to pay");
         }
 
-        if (!preOrderService.isRemainingPaymentOpened(orderId)) {
-            throw new BadRequestException("Remaining payment is not opened yet. Wait until stock arrives.");
-        }
-
-        if (order.getOrderStatus() == OrderStatus.SHIPPING
-                || order.getOrderStatus() == OrderStatus.COMPLETED) {
+        // Chỉ cho pay remaining trước khi operation tạo GHN (tránh đổi phương thức khi đã tạo COD)
+        if (order.getOrderStatus() == OrderStatus.SHIPPING || order.getOrderStatus() == OrderStatus.COMPLETED) {
             throw new BadRequestException("Cannot pay remaining after shipping started");
         }
 
-        Payment existingRemaining = paymentRepository
+        // Nếu đã có REMAINING SUCCESS rồi thì thôi
+        var existingRemaining = orderPaymentRepository
                 .findTopByOrder_IdAndStageOrderByIdDesc(orderId, PaymentStage.REMAINING)
                 .orElse(null);
 
-        if (existingRemaining != null) {
-            if (existingRemaining.getStatus() == PaymentStatus.SUCCESS) {
-                throw new BadRequestException("Remaining already paid");
-            }
+        if (existingRemaining != null && existingRemaining.getMethod() == PaymentMethod.VNPAY
+                && existingRemaining.getStatus() == PaymentStatus.SUCCESS) {
+            throw new BadRequestException("Remaining already paid");
+        }
 
-            if (existingRemaining.getStatus() == PaymentStatus.PENDING
-                    || existingRemaining.getStatus() == PaymentStatus.UNPAID) {
-                existingRemaining.setStatus(PaymentStatus.CANCELLED);
-            }
+        // Nếu trước đó đang chọn COD remaining và đã tạo REMAINING COD UNPAID, thì cancel nó để chuyển sang VNPAY
+        if (existingRemaining != null
+                && existingRemaining.getMethod() == PaymentMethod.COD
+                && existingRemaining.getStatus() == PaymentStatus.UNPAID) {
+
+            existingRemaining.setStatus(PaymentStatus.CANCELLED);
         }
 
         order.setRemainingPaymentMethod(PaymentMethod.VNPAY);
@@ -85,9 +81,8 @@ public class CustomerOrderPaymentController {
         pay.setAmount(remaining);
         pay.setStatus(PaymentStatus.PENDING);
         pay.setCreatedAt(LocalDateTime.now());
-        pay.setExpiresAt(LocalDateTime.now().plusMinutes(15));
 
-        paymentRepository.save(pay);
+        orderPaymentRepository.save(pay);
 
         String ipAddress = request.getRemoteAddr();
         if (ipAddress == null || ipAddress.equals("0:0:0:0:0:0:0:1")) {
@@ -96,11 +91,7 @@ public class CustomerOrderPaymentController {
 
         String paymentUrl;
         try {
-            paymentUrl = vnPayService.createVNPayUrl(
-                    pay.getId().toString(),
-                    remaining,
-                    ipAddress
-            );
+            paymentUrl = vnPayService.createVNPayUrl(pay.getId().toString(), remaining, ipAddress);
         } catch (Exception e) {
             throw new RuntimeException("Cannot create VNPay URL");
         }
