@@ -5,6 +5,7 @@ import com.example.SWP391_SPRING2026.Entity.OrderItems;
 import com.example.SWP391_SPRING2026.Entity.PreOrder;
 import com.example.SWP391_SPRING2026.Entity.ProductVariant;
 import com.example.SWP391_SPRING2026.Enum.PreOrderStatus;
+import com.example.SWP391_SPRING2026.Enum.SaleType;
 import com.example.SWP391_SPRING2026.Enum.VariantAvailabilityStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.PreOrderRepository;
@@ -27,19 +28,24 @@ public class PreOrderService {
     private final EmailService emailService;
 
     public VariantAvailabilityStatus resolveAvailability(ProductVariant variant) {
+        SaleType saleType = variant.getSaleType();
         int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+
+        if (saleType == SaleType.PRE_ORDER) {
+            boolean allow = Boolean.TRUE.equals(variant.getAllowPreorder());
+            int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
+            int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
+
+            if (!allow) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            if (limit <= 0) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            if (current >= limit) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            if (variant.getPreorderFulfillmentDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
+
+            return VariantAvailabilityStatus.PRE_ORDER;
+        }
+
         if (stock > 0) return VariantAvailabilityStatus.IN_STOCK;
-
-        boolean allow = Boolean.TRUE.equals(variant.getAllowPreorder());
-        int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
-        int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-
-        if (!allow) return VariantAvailabilityStatus.OUT_OF_STOCK;
-        if (limit <= 0) return VariantAvailabilityStatus.OUT_OF_STOCK;
-        if (current >= limit) return VariantAvailabilityStatus.OUT_OF_STOCK;
-        if (variant.getPreorderFulfillmentDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
-
-        return VariantAvailabilityStatus.PRE_ORDER;
+        return VariantAvailabilityStatus.OUT_OF_STOCK;
     }
 
     public void reserve(Order order, OrderItems orderItem, ProductVariant variant, int quantity) {
@@ -156,6 +162,13 @@ public class PreOrderService {
 
         int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
         variant.setStockQuantity(stock + arrivedQty);
+
+        allocateAvailableStock(variantId);
+    }
+
+    public void allocateAvailableStock(Long variantId) {
+        ProductVariant variant = productVariantRepository.lockById(variantId)
+                .orElseThrow(() -> new BadRequestException("Variant not found"));
 
         List<PreOrder> queue = preOrderRepository.lockQueueByVariant(
                 variantId,

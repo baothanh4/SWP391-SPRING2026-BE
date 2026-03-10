@@ -4,6 +4,7 @@ import com.example.SWP391_SPRING2026.DTO.Request.ProductVariantRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductVariantResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Product;
 import com.example.SWP391_SPRING2026.Entity.ProductVariant;
+import com.example.SWP391_SPRING2026.Enum.SaleType;
 import com.example.SWP391_SPRING2026.Repository.ProductRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
 import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
@@ -60,7 +61,7 @@ public class ProductVariantService {
 
         productVariantRepository.save(variant);
 
-        if (newStock > oldStock) {
+        if (variant.getSaleType() == SaleType.PRE_ORDER && newStock > oldStock) {
             preOrderService.allocateAvailableStock(variantId);
         }
 
