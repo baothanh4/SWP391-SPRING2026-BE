@@ -16,6 +16,7 @@ public class ProductComboResponseDTO {
     private String name;
     private String description;
     private Long comboPrice;
+    private String imageUrl;
     private Boolean active;
     private List<ComboItemResponseDTO> items;
 }

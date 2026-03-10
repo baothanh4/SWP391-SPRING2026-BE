@@ -26,6 +26,8 @@ public class ProductCombo {
 
     private String description;
 
+    private String imageUrl;
+
     private Long comboPrice;
 
     private Boolean active = true;

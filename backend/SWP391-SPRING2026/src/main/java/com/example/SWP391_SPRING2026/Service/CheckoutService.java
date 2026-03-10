@@ -133,15 +133,15 @@ public class CheckoutService {
 
                 totalAmount += comboPrice * quantity;
 
+                validateComboStock(combo,quantity);
+
                 for (ComboItem comboItem : combo.getItems()) {
                     ProductVariant variant = productVariantRepository
                             .lockById(comboItem.getProductVariant().getId())
                             .orElseThrow(() -> new BadRequestException("Variant not found"));
 
                     int required = comboItem.getQuantity() * quantity;
-                    if (variant.getStockQuantity() < required) {
-                        throw new BadRequestException("Insufficient stock in combo");
-                    }
+
                     variant.setStockQuantity(variant.getStockQuantity() - required);
                 }
             }
@@ -248,5 +248,19 @@ public class CheckoutService {
         return addressRepository
                 .findFirstByUser_IdAndIsDefaultTrue(userId)
                 .orElseThrow(() -> new BadRequestException("No default address"));
+    }
+
+    private void validateComboStock(ProductCombo combo, int quantityCombo){
+        for(ComboItem comboItem : combo.getItems()) {
+            ProductVariant variants = productVariantRepository.lockById(comboItem.getProductVariant().getId()).orElseThrow(() -> new BadRequestException("Variant not found"));
+
+            int required = comboItem.getQuantity() * quantityCombo;
+
+            int stock = variants.getStockQuantity() == null ? 0 : variants.getStockQuantity();
+
+            if(required > stock){
+                throw new BadRequestException("Variant " + variants.getId() + " only has " + stock + " but combo requires " + required);
+            }
+        }
     }
 }

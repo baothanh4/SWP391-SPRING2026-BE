@@ -15,6 +15,8 @@ public class CreateComboRequestDTO {
 
     private String description;
 
+    private String imageUrl;
+
     @NotEmpty
     private List<ComboItemRequestDTO> items;
 }

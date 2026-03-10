@@ -34,6 +34,7 @@ public class ProductComboService {
         ProductCombo combo = new ProductCombo();
         combo.setName(dto.getName());
         combo.setDescription(dto.getDescription());
+        combo.setImageUrl(dto.getImageUrl());
         combo.setActive(true);
 
         List<ComboItem> items = new ArrayList<>();
@@ -77,7 +78,7 @@ public class ProductComboService {
 
         combo.setName(dto.getName());
         combo.setDescription(dto.getDescription());
-
+        combo.setImageUrl(dto.getImageUrl());
         combo.getItems().clear();
 
         List<ComboItem> newItems = new ArrayList<>();
@@ -103,7 +104,7 @@ public class ProductComboService {
             comboItem.setProductVariant(variant);
             comboItem.setQuantity(itemDTO.getQuantity());
 
-            newItems.add(comboItem);
+            combo.getItems().add(comboItem);
         }
 
         BigDecimal discountMultiplier = BigDecimal
@@ -111,7 +112,7 @@ public class ProductComboService {
                 .divide(BigDecimal.valueOf(100));
 
         combo.setComboPrice(total.multiply(discountMultiplier).longValue());
-        combo.setItems(newItems);
+
 
         return toDTO(combo);
     }
@@ -133,12 +134,15 @@ public class ProductComboService {
         productComboRepository.save(combo);
     }
 
+
+
     private ProductComboResponseDTO toDTO(ProductCombo combo){
         ProductComboResponseDTO dto = new ProductComboResponseDTO();
         dto.setId(combo.getId());
         dto.setName(combo.getName());
         dto.setDescription(combo.getDescription());
         dto.setComboPrice(combo.getComboPrice());
+        dto.setImageUrl(combo.getImageUrl());
         dto.setActive(combo.getActive());
 
         dto.setItems(
