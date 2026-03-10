@@ -16,4 +16,7 @@ public class AddressResponseDTO {
     private String district;
     private String province;
     private Boolean isDefault;
+
+    public AddressResponseDTO(String receiverName, String phone, String addressLine, String ward, String district, String province) {
+    }
 }

@@ -74,6 +74,11 @@ public class Order {
     @JsonIgnore
     private Shipment shipment;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id",nullable = false)
+    @JsonIgnore
+    private Users user;
+
     @OneToMany(
             mappedBy = "order",
             cascade = CascadeType.ALL,

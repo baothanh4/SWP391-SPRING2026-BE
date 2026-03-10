@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 
 @Service
@@ -71,6 +72,7 @@ public class ProductService {
     }
 
     private ProductResponseDTO toDTO(Product product){
+
         ProductResponseDTO dto = new ProductResponseDTO();
         dto.setId(product.getId());
         dto.setName(product.getName());
@@ -78,6 +80,29 @@ public class ProductService {
         dto.setStatus(product.getStatus().name());
         dto.setDescription(product.getDescription());
         dto.setProductImage(product.getProductImage());
+
+        List<ProductVariantSummaryDTO> variants =
+                product.getVariants().stream().map(v -> {
+
+                    ProductVariantSummaryDTO vdto = new ProductVariantSummaryDTO();
+                    vdto.setVariantId(v.getId());
+                    vdto.setPrice(v.getPrice());
+                    vdto.setStockQuantity(v.getStockQuantity());
+
+                    List<Long> imageIds =
+                            v.getAttributes().stream()
+                                    .flatMap(a -> a.getImages().stream())
+                                    .map(VariantAttributeImage::getId)
+                                    .toList();
+
+                    vdto.setImageIds((Set<Long>) imageIds);
+
+                    return vdto;
+
+                }).toList();
+
+        dto.setVariants(variants);
+
         return dto;
     }
 
@@ -162,7 +187,12 @@ public class ProductService {
                                 adto.setImages(
                                         a.getImages().stream()
                                                 .sorted(Comparator.comparing(VariantAttributeImage::getSortOrder))
-                                                .map(VariantAttributeImage::getImageUrl)
+                                                .map(img -> new VariantAttributeImageResponseDTO(
+                                                        img.getId(),
+                                                        img.getImageUrl(),
+                                                        img.getSortOrder(),
+                                                        a.getId()
+                                                ))
                                                 .toList()
                                 );
                                 return adto;

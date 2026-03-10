@@ -2,10 +2,11 @@ package com.example.SWP391_SPRING2026.Service;
 
 import com.example.SWP391_SPRING2026.DTO.Request.ChangePasswordDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CustomerAccountResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.AddressResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
+import com.example.SWP391_SPRING2026.Entity.Address;
 import com.example.SWP391_SPRING2026.Entity.Order;
-import com.example.SWP391_SPRING2026.Entity.OrderItems;
-import com.example.SWP391_SPRING2026.Entity.ProductVariant;
 import com.example.SWP391_SPRING2026.Entity.Users;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
@@ -16,6 +17,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +82,13 @@ public class CustomerService {
         orderCancellationService.cancelByCustomer(userId, orderId);
     }
 
+    public List<OrderResponseDTO> getMyOrders(Long userId){
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+
+        return orders.stream()
+                .map(this::map)
+                .toList();
+    }
 
     private CustomerAccountResponseDTO map(Users u) {
         return new CustomerAccountResponseDTO(
@@ -91,6 +101,32 @@ public class CustomerService {
                 u.getStatus(),
                 u.getCreateAt()
         );
+    }
+
+    private OrderResponseDTO map(Order order){
+
+        OrderResponseDTO dto = new OrderResponseDTO();
+
+        dto.setId(order.getId());
+        dto.setOrderCode(order.getOrderCode());
+        dto.setOrderType(order.getOrderType());
+        dto.setOrderStatus(order.getOrderStatus());
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setDeposit(order.getDeposit());
+        dto.setRemainingAmount(order.getRemainingAmount());
+
+        if(order.getAddress() != null){
+            AddressResponseDTO addressDTO = new AddressResponseDTO();
+
+            addressDTO.setId(order.getAddress().getId());
+            addressDTO.setReceiverName(order.getAddress().getReceiverName());
+            addressDTO.setPhone(order.getAddress().getPhone());
+            addressDTO.setAddressLine(order.getAddress().getAddressLine());
+
+            dto.setAddress(addressDTO);
+        }
+
+        return dto;
     }
 
 }

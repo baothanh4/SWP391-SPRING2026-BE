@@ -86,7 +86,9 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         return "http://localhost:5173/payment-result?status="
-                + payment.getStatus().name().toLowerCase();
+                + payment.getStatus().name().toLowerCase()
+                + "?transactionCode="+payment.getTransactionCode()
+                + "?amount="+payment.getAmount();
     }
 
     @Transactional

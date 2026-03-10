@@ -13,5 +13,5 @@ public class VariantAttributeResponseDTO {
     private Long id;
     private String attributeName;
     private String attributeValue;
-    private List<String> images;
+    private List<VariantAttributeImageResponseDTO> images;
 }

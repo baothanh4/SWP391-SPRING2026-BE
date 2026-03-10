@@ -6,6 +6,7 @@ import com.example.SWP391_SPRING2026.DTO.Request.ChangePasswordDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CustomerAccountResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.AddressResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.PaymentHistoryResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Service.AddressService;
@@ -114,5 +115,11 @@ public class CustomerController {
     @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<List<PaymentHistoryResponseDTO>> getAllPayments(@AuthenticationPrincipal UserPrincipal principal){
         return ResponseEntity.ok(paymentService.getPaymentHistory(principal.getUserId()));
+    }
+
+    @GetMapping("/my/orders")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<List<OrderResponseDTO>> getAllOrders(@AuthenticationPrincipal UserPrincipal principal){
+        return ResponseEntity.ok(customerService.getMyOrders(principal.getUserId()));
     }
 }

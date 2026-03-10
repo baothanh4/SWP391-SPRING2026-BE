@@ -50,6 +50,8 @@ public class Users {
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<Address> addresses;
 
+    @OneToMany(mappedBy = "user")
+    private List<Order> orders;
 
     @PrePersist
     protected void onCreate() {

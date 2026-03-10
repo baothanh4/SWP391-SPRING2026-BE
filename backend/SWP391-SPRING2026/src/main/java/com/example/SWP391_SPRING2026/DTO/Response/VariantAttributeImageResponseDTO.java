@@ -12,4 +12,6 @@ public class VariantAttributeImageResponseDTO {
     private String imageUrl;
     private Integer sortOrder;
     private Long attributeId;
+
+
 }

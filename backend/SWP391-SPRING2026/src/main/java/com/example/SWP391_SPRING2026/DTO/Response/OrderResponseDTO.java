@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,4 +20,7 @@ public class OrderResponseDTO {
     private Long deposit;
     private Long remainingAmount;
     private AddressResponseDTO  address;
+
+    public OrderResponseDTO(Long id, String orderCode, OrderType orderType, OrderStatus orderStatus, Long totalAmount, Long deposit, Long remainingAmount, AddressResponseDTO addressDTO, LocalDateTime createdAt) {
+    }
 }

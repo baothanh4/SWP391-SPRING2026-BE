@@ -202,4 +202,43 @@ public class PreOrderService {
             }
         }
     }
+
+    public void allocateAvailableStock(Long variantId) {
+        ProductVariant variant = productVariantRepository.lockById(variantId)
+                .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+        List<PreOrder> queue = preOrderRepository.lockQueueByVariant(
+                variantId,
+                EnumSet.of(PreOrderStatus.AWAITING_STOCK)
+        );
+
+        for (PreOrder line : queue) {
+            int available = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+            if (available < line.getQuantity()) {
+                break;
+            }
+
+            variant.setStockQuantity(available - line.getQuantity());
+            line.setAllocatedStock(true);
+
+            Order order = line.getOrder();
+            long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
+
+            if (remaining > 0) {
+                line.setPreorderStatus(PreOrderStatus.AWAITING_REMAINING_PAYMENT);
+
+                String email = order.getAddress().getUser().getEmail();
+                emailService.sendPreOrderRemainingPaymentEmail(
+                        email,
+                        order.getOrderCode(),
+                        remaining,
+                        line.getExpectedReleaseDate()
+                );
+            } else {
+                line.setPreorderStatus(PreOrderStatus.READY_FOR_PROCESSING);
+            }
+        }
+    }
+
+
 }

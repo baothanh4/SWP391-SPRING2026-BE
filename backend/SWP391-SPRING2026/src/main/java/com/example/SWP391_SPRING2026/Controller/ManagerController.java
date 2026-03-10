@@ -45,6 +45,7 @@ public class ManagerController {
         return productService.updateProduct(id, dto);
     }
 
+
     @DeleteMapping("/products/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivateProduct(@PathVariable Long id) {
