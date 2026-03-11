@@ -5,9 +5,12 @@ import com.example.SWP391_SPRING2026.DTO.Request.ComboItemRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.CreateComboRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ComboItemResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductComboResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.VariantAttributeImageResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.VariantAttributeResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.ComboItem;
 import com.example.SWP391_SPRING2026.Entity.ProductCombo;
 import com.example.SWP391_SPRING2026.Entity.ProductVariant;
+import com.example.SWP391_SPRING2026.Entity.VariantAttributeImage;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
 import com.example.SWP391_SPRING2026.Repository.ProductComboRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -137,6 +141,7 @@ public class ProductComboService {
 
 
     private ProductComboResponseDTO toDTO(ProductCombo combo){
+
         ProductComboResponseDTO dto = new ProductComboResponseDTO();
         dto.setId(combo.getId());
         dto.setName(combo.getName());
@@ -146,16 +151,53 @@ public class ProductComboService {
         dto.setActive(combo.getActive());
 
         dto.setItems(
-                combo.getItems().stream().map(
-                        item ->{
-                            ComboItemResponseDTO i = new ComboItemResponseDTO();
-                            i.setId(item.getId());
-                            i.setProductVariantId(item.getProductVariant().getId());
-                            i.setQuantity(item.getQuantity());
-                            return i;
-                        }
-                ).toList()
+                combo.getItems().stream().map(item -> {
+
+                    ComboItemResponseDTO i = new ComboItemResponseDTO();
+
+                    ProductVariant variant = item.getProductVariant();
+
+                    i.setId(item.getId());
+                    i.setProductVariantId(variant.getId());
+                    i.setQuantity(item.getQuantity());
+
+                    List<VariantAttributeResponseDTO> attrs =
+                            variant.getAttributes().stream()
+                                    .map(a -> {
+
+                                        VariantAttributeResponseDTO adto =
+                                                new VariantAttributeResponseDTO();
+
+                                        adto.setId(a.getId());
+                                        adto.setAttributeName(a.getAttributeName());
+                                        adto.setAttributeValue(a.getAttributeValue());
+
+                                        adto.setImages(
+                                                a.getImages().stream()
+                                                        .sorted(Comparator.comparing(
+                                                                VariantAttributeImage::getSortOrder))
+                                                        .map(img ->
+                                                                new VariantAttributeImageResponseDTO(
+                                                                        img.getId(),
+                                                                        img.getImageUrl(),
+                                                                        img.getSortOrder(),
+                                                                        a.getId()
+                                                                )
+                                                        )
+                                                        .toList()
+                                        );
+
+                                        return adto;
+                                    })
+                                    .toList();
+
+                    i.setAttributes(attrs);
+
+                    return i;
+
+                }).toList()
         );
+
         return dto;
     }
 

@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -13,4 +15,6 @@ public class ComboItemResponseDTO {
     private Long id;
     private Long productVariantId;
     private Integer quantity;
+
+    private List<VariantAttributeResponseDTO> attributes;
 }

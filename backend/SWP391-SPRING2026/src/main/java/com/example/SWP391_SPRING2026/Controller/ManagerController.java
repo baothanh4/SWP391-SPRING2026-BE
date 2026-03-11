@@ -192,4 +192,6 @@ public class ManagerController {
         preOrderService.allocateAvailableStock(variantId);
         return ResponseEntity.ok("Current stock allocated to preorder queue");
     }
+
+
 }
