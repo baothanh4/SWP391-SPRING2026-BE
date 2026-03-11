@@ -28,6 +28,8 @@ public class CheckoutService {
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
     private final PreOrderService preOrderService;
+    private final EmailService emailService;
+
 
     public CheckoutResponseDTO checkout(Long userId,
                                         CheckoutRequestDTO dto,
@@ -210,6 +212,16 @@ public class CheckoutService {
         order.setShipment(shipment);
 
         cart.setStatus(CartStatus.CHECKED_OUT);
+
+        if (dto.getPaymentMethod() == PaymentMethod.COD) {
+
+            String email = address.getUser().getEmail();
+
+            emailService.sendOrderPlacedEmail(
+                    email,
+                    order.getOrderCode()
+            );
+        }
 
         String paymentUrl = null;
         if (dto.getPaymentMethod() == PaymentMethod.VNPAY) {

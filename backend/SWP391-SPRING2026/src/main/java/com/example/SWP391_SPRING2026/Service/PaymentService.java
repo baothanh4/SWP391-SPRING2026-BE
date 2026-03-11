@@ -24,6 +24,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final VNPayService vnPayService;
     private final PreOrderService preOrderService;
+    private final EmailService emailService;
 
     private static final String SECRET_KEY =
             "4LTI2QLZGKBVC0HB79O3K437RSDFJDJJ";
@@ -51,8 +52,17 @@ public class PaymentService {
 
         if ("00".equals(params.get("vnp_ResponseCode"))) {
             payment.setStatus(PaymentStatus.SUCCESS);
+            String email = order.getAddress().getUser().getEmail();
+
+            emailService.sendPaymentSuccessEmail(
+                    email,
+                    order.getOrderCode(),
+                    payment.getAmount()
+            );
             payment.setTransactionCode(params.get("vnp_TransactionNo"));
             payment.setPaidAt(LocalDateTime.now());
+
+
 
             if (order.getOrderType() == OrderType.PRE_ORDER) {
                 if (payment.getStage() == PaymentStage.DEPOSIT

@@ -23,7 +23,7 @@ public class OrderConfirmService {
     private final GhnService ghnService;
     private final PaymentRepository paymentRepository;
     private final PreOrderService preOrderService;
-
+    private final EmailService emailService;
     public void confirmByOperation(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
@@ -105,6 +105,16 @@ public class OrderConfirmService {
                 if (order.getOrderType() == OrderType.PRE_ORDER) {
                     preOrderService.markFulfilled(order);
                 }
+
+                // ===== SEND EMAIL =====
+                String email = order.getAddress()
+                        .getUser()
+                        .getEmail();
+
+                emailService.sendOrderDeliveredEmail(
+                        email,
+                        order.getOrderCode()
+                );
             }
 
             case CANCELLED -> order.setOrderStatus(OrderStatus.CANCELLED);
