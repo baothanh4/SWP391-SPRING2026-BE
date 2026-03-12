@@ -36,7 +36,7 @@ public class PaymentService {
         boolean valid = VNPayUtils.verifySignature(params, SECRET_KEY);
 
         if (!valid) {
-            return "http://localhost:5173/payment-result?status=invalid";
+            return "http://localhost:5173/customer/payment-result?status=invalid";
         }
 
         String paymentIdStr = params.get("vnp_TxnRef");
@@ -45,7 +45,7 @@ public class PaymentService {
                 .orElseThrow(() -> new RuntimeException("Payment not found"));
 
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            return "http://localhost:5173/payment-result?status=success";
+            return "http://localhost:5173/customer/payment-result?status=success";
         }
 
         Order order = payment.getOrder();
