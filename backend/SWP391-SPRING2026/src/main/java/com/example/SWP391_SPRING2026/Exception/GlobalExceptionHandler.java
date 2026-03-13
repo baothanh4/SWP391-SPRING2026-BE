@@ -53,11 +53,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest req) {
+        String detail = ex.getMostSpecificCause() != null
+                ? ex.getMostSpecificCause().getMessage()
+                : ex.getMessage();
+
         ApiError body = new ApiError(
                 Instant.now(),
                 HttpStatus.CONFLICT.value(),
                 "CONFLICT",
-                "Data constraint violation (possibly duplicated email/phone).",
+                "Database constraint violation: " + detail,
                 req.getRequestURI(),
                 null
         );

@@ -97,8 +97,8 @@ public class PaymentService {
 
         return "http://localhost:5173/payment-result?status="
                 + payment.getStatus().name().toLowerCase()
-                + "?transactionCode="+payment.getTransactionCode()
-                + "?amount="+payment.getAmount();
+                + "&transactionCode=" + payment.getTransactionCode()
+                + "&amount=" + payment.getAmount();
     }
 
     @Transactional
