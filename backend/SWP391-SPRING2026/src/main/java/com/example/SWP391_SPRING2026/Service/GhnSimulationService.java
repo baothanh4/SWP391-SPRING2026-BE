@@ -3,12 +3,15 @@ package com.example.SWP391_SPRING2026.Service;
 import com.example.SWP391_SPRING2026.Entity.Shipment;
 import com.example.SWP391_SPRING2026.Enum.ShipmentStatus;
 import com.example.SWP391_SPRING2026.Repository.ShipmentRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +20,8 @@ public class GhnSimulationService {
 
     private final ShipmentRepository shipmentRepository;
     private final OrderConfirmService orderConfirmService;
+
+    private final Random random = new Random();
 
     @Scheduled(fixedRate = 30000)
     public void simulateShipmentProgress() {
@@ -41,7 +46,10 @@ public class GhnSimulationService {
             switch (status) {
 
                 case READY_TO_PICK -> {
-                    log.info("Updating {} -> PICKING", shipment.getGhnOrderCode());
+
+                    log.info("GHN update {} -> PICKING",
+                            shipment.getGhnOrderCode());
+
                     orderConfirmService.updateFromWebhook(
                             shipment.getGhnOrderCode(),
                             "picking"
@@ -49,7 +57,10 @@ public class GhnSimulationService {
                 }
 
                 case PICKING -> {
-                    log.info("Updating {} -> DELIVERING", shipment.getGhnOrderCode());
+
+                    log.info("GHN update {} -> DELIVERING",
+                            shipment.getGhnOrderCode());
+
                     orderConfirmService.updateFromWebhook(
                             shipment.getGhnOrderCode(),
                             "delivering"
@@ -57,16 +68,42 @@ public class GhnSimulationService {
                 }
 
                 case DELIVERING -> {
-                    log.info("Updating {} -> DELIVERED", shipment.getGhnOrderCode());
-                    orderConfirmService.updateFromWebhook(
-                            shipment.getGhnOrderCode(),
-                            "delivered"
-                    );
+
+                    /*
+                     RANDOM DELIVERY RESULT
+                     */
+
+                    int chance = random.nextInt(100);
+
+                    if (chance < 90) {
+
+                        log.info("GHN update {} -> DELIVERED",
+                                shipment.getGhnOrderCode());
+
+                        orderConfirmService.updateFromWebhook(
+                                shipment.getGhnOrderCode(),
+                                "delivered"
+                        );
+
+                    } else {
+
+                        log.info("GHN update {} -> DELIVERY_FAIL",
+                                shipment.getGhnOrderCode());
+
+                        orderConfirmService.updateFromWebhook(
+                                shipment.getGhnOrderCode(),
+                                "delivery_fail"
+                        );
+                    }
                 }
 
-                case DELIVERED -> {
-                    log.info("Shipment {} already delivered", shipment.getGhnOrderCode());
-                }
+                case DELIVERED ->
+                        log.info("Shipment {} already delivered",
+                                shipment.getGhnOrderCode());
+
+                case FAILED ->
+                        log.info("Shipment {} delivery failed",
+                                shipment.getGhnOrderCode());
             }
         }
     }
