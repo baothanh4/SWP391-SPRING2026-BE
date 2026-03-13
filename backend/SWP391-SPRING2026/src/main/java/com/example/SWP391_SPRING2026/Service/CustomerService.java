@@ -90,6 +90,19 @@ public class CustomerService {
                 .toList();
     }
 
+    public OrderResponseDTO getMyOrderById(Long userId, Long orderId){
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BadRequestException("Order not found"));
+
+        // Check order ownership
+        if(!order.getUser().getId().equals(userId)){
+            throw new BadRequestException("You are not allowed to view this order");
+        }
+
+        return map(order);
+    }
+
     private CustomerAccountResponseDTO map(Users u) {
         return new CustomerAccountResponseDTO(
                 u.getId(),

@@ -1,17 +1,21 @@
 package com.example.SWP391_SPRING2026.Service;
 
+import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.Shipment;
 import com.example.SWP391_SPRING2026.Enum.*;
+import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Repository.ShipmentRepository;
+import com.example.SWP391_SPRING2026.mapper.OrderMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +72,20 @@ public class OrderConfirmService {
 
         shipmentRepository.save(shipment);
         orderRepository.save(order);
+    }
+
+    @Transactional
+    public List<OrderResponseDTO> getAllOrders() {
+
+        return orderRepository.findAll()
+                .stream()
+                .map(OrderMapper::toResponse)
+                .toList();
+    }
+
+    public OrderResponseDTO getOrderById(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        return OrderMapper.toResponse(order);
     }
 
     public void updateFromWebhook(String ghnCode, String ghnStatus) {

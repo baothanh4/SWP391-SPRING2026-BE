@@ -2,6 +2,7 @@ package com.example.SWP391_SPRING2026.Controller;
 
 
 import com.example.SWP391_SPRING2026.DTO.Request.CancelOrderByStaffRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
@@ -16,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/support_staff/orders")
 @RequiredArgsConstructor
@@ -24,14 +27,15 @@ public class SupportStaffController {
     private final OrderRepository orderRepository;
     private final OrderCancellationService orderCancellationService;
 
-    // 1️⃣ Danh sách đơn chờ support duyệt
-    @GetMapping("/waiting")
+    @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public Page<Order> getWaitingOrders(Pageable pageable) {
-        return orderRepository.findByOrderStatus(
-                OrderStatus.WAITING_CONFIRM,
-                pageable
-        );
+    public List<OrderResponseDTO> getAllOrders() {
+        return orderCancellationService.getAllOrders();
+    }
+
+    @GetMapping("/{orderId}")
+    public OrderResponseDTO getOrderById(@PathVariable Long orderId) {
+        return orderCancellationService.getOrderById(orderId);
     }
 
     // 2️⃣ Confirm đơn (Support duyệt)

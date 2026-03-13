@@ -1,13 +1,17 @@
 package com.example.SWP391_SPRING2026.Service;
 
+import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
 import com.example.SWP391_SPRING2026.Repository.*;
 import com.example.SWP391_SPRING2026.Utility.RefundCalculator;
+import com.example.SWP391_SPRING2026.mapper.OrderMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -136,6 +140,20 @@ public class OrderCancellationService {
                     note
             );
         }
+    }
+
+    @Transactional
+    public List<OrderResponseDTO> getAllOrders() {
+
+        return orderRepository.findAll()
+                .stream()
+                .map(OrderMapper::toResponse)
+                .toList();
+    }
+
+    public OrderResponseDTO getOrderById(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        return OrderMapper.toResponse(order);
     }
 
     // =========================================================

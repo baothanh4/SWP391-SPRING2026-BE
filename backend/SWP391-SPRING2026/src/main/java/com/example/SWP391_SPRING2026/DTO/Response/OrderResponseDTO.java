@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderResponseDTO {
+
     private Long id;
     private String orderCode;
     private OrderType orderType;
@@ -19,8 +20,7 @@ public class OrderResponseDTO {
     private Long totalAmount;
     private Long deposit;
     private Long remainingAmount;
-    private AddressResponseDTO  address;
+    private AddressResponseDTO address;
+    private LocalDateTime createdAt;
 
-    public OrderResponseDTO(Long id, String orderCode, OrderType orderType, OrderStatus orderStatus, Long totalAmount, Long deposit, Long remainingAmount, AddressResponseDTO addressDTO, LocalDateTime createdAt) {
-    }
 }

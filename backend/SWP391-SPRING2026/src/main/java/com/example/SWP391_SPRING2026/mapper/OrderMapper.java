@@ -6,8 +6,25 @@ import com.example.SWP391_SPRING2026.Entity.Address;
 import com.example.SWP391_SPRING2026.Entity.Order;
 
 public class OrderMapper {
+
     public static OrderResponseDTO toResponse(Order order){
+
         Address a = order.getAddress();
+
+        AddressResponseDTO addressDTO = null;
+
+        if(a != null){
+            addressDTO = new AddressResponseDTO(
+                    a.getId(),
+                    a.getReceiverName(),
+                    a.getPhone(),
+                    a.getAddressLine(),
+                    a.getWard(),
+                    a.getDistrict(),
+                    a.getProvince(),
+                    a.getIsDefault()
+            );
+        }
 
         return new OrderResponseDTO(
                 order.getId(),
@@ -17,16 +34,8 @@ public class OrderMapper {
                 order.getTotalAmount(),
                 order.getDeposit(),
                 order.getRemainingAmount(),
-                new AddressResponseDTO(
-                        a.getId(),
-                        a.getReceiverName(),
-                        a.getPhone(),
-                        a.getAddressLine(),
-                        a.getWard(),
-                        a.getDistrict(),
-                        a.getProvince(),
-                        a.getIsDefault()
-                )
+                addressDTO,
+                order.getCreatedAt()
         );
     }
 }

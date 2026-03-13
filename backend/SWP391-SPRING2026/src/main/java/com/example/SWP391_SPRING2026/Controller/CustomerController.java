@@ -122,4 +122,15 @@ public class CustomerController {
     public ResponseEntity<List<OrderResponseDTO>> getAllOrders(@AuthenticationPrincipal UserPrincipal principal){
         return ResponseEntity.ok(customerService.getMyOrders(principal.getUserId()));
     }
+
+    @GetMapping("/my/orders/{orderId}")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<OrderResponseDTO> getOrderById(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long orderId
+    ){
+        return ResponseEntity.ok(
+                customerService.getMyOrderById(principal.getUserId(), orderId)
+        );
+    }
 }
