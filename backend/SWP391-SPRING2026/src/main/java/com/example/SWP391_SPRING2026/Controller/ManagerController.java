@@ -176,6 +176,7 @@ public class ManagerController {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(comboService.getAllActiveCombos(pageable));
     }
+
     @PostMapping("/preorders/variants/{variantId}/stock-arrived")
     @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<String> markPreOrderStockArrived(
@@ -192,6 +193,5 @@ public class ManagerController {
         preOrderService.allocateAvailableStock(variantId);
         return ResponseEntity.ok("Current stock allocated to preorder queue");
     }
-
 
 }

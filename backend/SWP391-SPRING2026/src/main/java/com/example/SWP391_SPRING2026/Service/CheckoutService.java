@@ -29,7 +29,7 @@ public class CheckoutService {
     private final VNPayService vnPayService;
     private final PreOrderService preOrderService;
     private final EmailService emailService;
-
+    private final UserRepository userRepository;
 
     public CheckoutResponseDTO checkout(Long userId,
                                         CheckoutRequestDTO dto,
@@ -38,6 +38,9 @@ public class CheckoutService {
         Cart cart = cartRepository
                 .findByUserIdAndStatus(userId, CartStatus.ACTIVE)
                 .orElseThrow(() -> new BadRequestException("Cart not found"));
+
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
         if (cart.getItems().isEmpty()) {
             throw new BadRequestException("Cart items is empty");
@@ -80,6 +83,7 @@ public class CheckoutService {
         order.setOrderType(saleType == SaleType.PRE_ORDER ? OrderType.PRE_ORDER : OrderType.IN_STOCK);
         order.setOrderStatus(OrderStatus.WAITING_CONFIRM);
         order.setAddress(address);
+        order.setUser(user);
         order.setCreatedAt(LocalDateTime.now());
         orderRepository.save(order);
 
