@@ -127,7 +127,9 @@ public class ProductService {
     }
 
     private ProductSearchItemDTO toSearchItemDTO(ProductSearchProjection p) {
+
         ProductSearchItemDTO dto = new ProductSearchItemDTO();
+
         dto.setId(p.getId());
         dto.setName(p.getName());
         dto.setBrandName(p.getBrandName());
@@ -140,6 +142,16 @@ public class ProductService {
         Long stock = p.getTotalStock() == null ? 0L : p.getTotalStock();
         dto.setTotalStock(stock);
         dto.setHasStock(stock > 0);
+
+        // ⭐ map saleTypes
+        if (p.getSaleTypes() != null) {
+            dto.setSaleTypes(
+                    p.getSaleTypes()
+                            .stream()
+                            .map(com.example.SWP391_SPRING2026.Enum.SaleType::valueOf)
+                            .collect(java.util.stream.Collectors.toSet())
+            );
+        }
 
         return dto;
     }

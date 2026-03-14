@@ -39,6 +39,7 @@ public class AdminController {
 
     @GetMapping("/users")
     public ResponseEntity<Page<AdminUserResponse>> getUsers(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) UserStatus status,
             @PageableDefault(size = 10) Pageable pageable
@@ -50,7 +51,7 @@ public class AdminController {
                 Sort.by(Sort.Direction.DESC, "createAt") // FIX cứng sort
         );
 
-        return ResponseEntity.ok(adminService.listUsers(role, status, safePageable));
+        return ResponseEntity.ok(adminService.listUsers(keyword,role, status, safePageable));
     }
 
 
