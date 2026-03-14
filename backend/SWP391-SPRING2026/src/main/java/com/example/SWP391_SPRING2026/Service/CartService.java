@@ -6,6 +6,7 @@ import com.example.SWP391_SPRING2026.DTO.Request.CartVariantAttributeDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.UpdateCartItemDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CartItemResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.CartResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.ComboItemDTO;
 import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.CartStatus;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
@@ -218,59 +219,86 @@ public class CartService {
     }
 
     private ProductVariant resolveVariant(AddToCartDTO dto) {
+
+        ProductVariant variant;
+
         if (dto.getProductVariantId() != null) {
-            return productVariantRepository.findById(dto.getProductVariantId())
+            variant = productVariantRepository.findById(dto.getProductVariantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product variant not found"));
         }
-
-        if (dto.getProductId() != null) {
-            return productVariantRepository.findFirstByProductIdOrderByIdAsc(dto.getProductId())
+        else if (dto.getProductId() != null) {
+            variant = productVariantRepository
+                    .findFirstByProductIdOrderByIdAsc(dto.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException("No variant found for product"));
         }
+        else {
+            throw new BadRequestException("productVariantId or productId is required");
+        }
 
-        throw new BadRequestException("productVariantId or productId is required");
+        if (variant.getSaleType() == null) {
+            throw new BadRequestException("Variant sale type is missing");
+        }
+
+        return variant;
     }
 
     private void validateSellableAndStock(ProductVariant variant, int requestedQty) {
+
+        if (variant == null) {
+            throw new ResourceNotFoundException("Variant not found");
+        }
+
         Product product = variant.getProduct();
-        if (product != null && product.getStatus() != null && product.getStatus() != ProductStatus.ACTIVE) {
+
+        if (product != null && product.getStatus() != ProductStatus.ACTIVE) {
             throw new ResourceNotFoundException("Product not available");
         }
 
-        VariantAvailabilityStatus availability = VariantAvailabilityResolver.resolve(variant);
-
-        if (availability == VariantAvailabilityStatus.OUT_OF_STOCK) {
-            int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
-            throw new InsufficientStockException(
-                    "Insufficient stock. Requested=" + requestedQty + ", Available=" + stock
-            );
+        // đảm bảo saleType không null
+        if (variant.getSaleType() == null) {
+            throw new BadRequestException("Variant sale type is not defined");
         }
 
-        if (availability == VariantAvailabilityStatus.IN_STOCK) {
+        // ================= IN STOCK =================
+        if (variant.getSaleType() == com.example.SWP391_SPRING2026.Enum.SaleType.IN_STOCK) {
+
             int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+
+            if (stock <= 0) {
+                throw new InsufficientStockException("Product is out of stock");
+            }
+
             if (requestedQty > stock) {
                 throw new InsufficientStockException(
                         "Insufficient stock. Requested=" + requestedQty + ", Available=" + stock
                 );
             }
+
             return;
         }
 
-        // PRE_ORDER
-        int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
-        int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-        int remainingSlots = Math.max(limit - current, 0);
+        // ================= PRE ORDER =================
+        if (variant.getSaleType() == com.example.SWP391_SPRING2026.Enum.SaleType.PRE_ORDER) {
 
-        if (remainingSlots <= 0) {
-            throw new BadRequestException("Pre-order slot is full");
+            int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
+            int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
+
+            int remainingSlots = Math.max(limit - current, 0);
+
+            if (remainingSlots <= 0) {
+                throw new BadRequestException("Pre-order slot is full");
+            }
+
+            if (requestedQty > remainingSlots) {
+                throw new BadRequestException(
+                        "Pre-order quantity exceeds remaining slots. Requested="
+                                + requestedQty + ", RemainingSlots=" + remainingSlots
+                );
+            }
+
+            return;
         }
 
-        if (requestedQty > remainingSlots) {
-            throw new BadRequestException(
-                    "Pre-order quantity exceeds remaining slots. Requested="
-                            + requestedQty + ", RemainingSlots=" + remainingSlots
-            );
-        }
     }
 
     private CartResponseDTO mapToResponse(Cart cart) {
@@ -279,7 +307,6 @@ public class CartService {
         BigDecimal subTotal = BigDecimal.ZERO;
         int totalItems = 0;
 
-        // Copy list để tránh Hibernate concurrent issue
         List<CartItem> safeItems = new ArrayList<>(cart.getItems());
 
         for (CartItem item : safeItems) {
@@ -294,13 +321,41 @@ public class CartService {
                 BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(qty));
 
                 CartItemResponseDTO dto = new CartItemResponseDTO();
-                dto.setProductId(combo.getId());
-                dto.setProductName(combo.getName());
-                dto.setProductImage(null);
+
+                dto.setCartItemId(item.getId());
+                dto.setIsCombo(true);
+
+                dto.setComboId(combo.getId());
+                dto.setComboName(combo.getName());
+                dto.setComboImage(null);
+
                 dto.setUnitPrice(unitPrice);
                 dto.setQuantity(qty);
                 dto.setTotalPrice(totalPrice);
+
                 dto.setAttributes(List.of());
+
+                // combo items
+                List<ComboItemDTO> comboItems = new ArrayList<>();
+
+                if (combo.getItems() != null) {
+
+                    for (ComboItem ci : combo.getItems()) {
+
+                        ComboItemDTO cdto = new ComboItemDTO();
+
+                        cdto.setVariantId(ci.getProductVariant().getId());
+
+                        Product product = ci.getProductVariant().getProduct();
+                        cdto.setProductName(product != null ? product.getName() : null);
+
+                        cdto.setQuantity(ci.getQuantity());
+
+                        comboItems.add(cdto);
+                    }
+                }
+
+                dto.setComboItems(comboItems);
 
                 itemDTOs.add(dto);
 
@@ -311,6 +366,7 @@ public class CartService {
             }
 
             // ================= VARIANT =================
+
             ProductVariant v = item.getProductVariant();
             if (v == null) continue;
 
@@ -323,7 +379,6 @@ public class CartService {
             int qty = safeQty(item.getQuantity());
             BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(qty));
 
-            // SAFE copy attributes
             List<CartVariantAttributeDTO> attrDTOs = new ArrayList<>();
 
             if (v.getAttributes() != null) {
@@ -339,7 +394,6 @@ public class CartService {
                     adto.setAttributeName(attr.getAttributeName());
                     adto.setAttributeValue(attr.getAttributeValue());
 
-                    // SAFE copy images
                     List<String> imageUrls = new ArrayList<>();
 
                     if (attr.getImages() != null) {
@@ -370,14 +424,20 @@ public class CartService {
                     .orElse(p != null ? p.getProductImage() : null);
 
             CartItemResponseDTO dto = new CartItemResponseDTO();
+
+            dto.setCartItemId(item.getId());
+            dto.setIsCombo(false);
+
             dto.setProductId(p != null ? p.getId() : null);
             dto.setProductName(p != null ? p.getName() : null);
             dto.setProductImage(displayImage);
+
             dto.setUnitPrice(unitPrice);
             dto.setQuantity(qty);
             dto.setTotalPrice(totalPrice);
-            dto.setAttributes(attrDTOs);
 
+            dto.setAttributes(attrDTOs);
+            dto.setSaleType(v.getSaleType());
             itemDTOs.add(dto);
 
             subTotal = subTotal.add(totalPrice);
@@ -385,6 +445,7 @@ public class CartService {
         }
 
         BigDecimal discount = calculateDiscount(subTotal, cart.getCouponCode());
+
         if (discount.compareTo(subTotal) > 0) {
             discount = subTotal;
         }
@@ -392,6 +453,7 @@ public class CartService {
         BigDecimal finalTotal = subTotal.subtract(discount);
 
         CartResponseDTO res = new CartResponseDTO();
+
         res.setItems(itemDTOs);
         res.setSubTotal(subTotal);
         res.setDiscountAmount(discount);

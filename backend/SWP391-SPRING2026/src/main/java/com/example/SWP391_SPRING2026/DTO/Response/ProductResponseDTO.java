@@ -13,6 +13,5 @@ public class ProductResponseDTO {
     private String description;
     private String status;
     private String productImage;
-
     private List<ProductVariantSummaryDTO> variants;
 }

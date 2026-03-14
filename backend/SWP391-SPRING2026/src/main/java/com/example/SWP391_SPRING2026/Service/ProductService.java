@@ -88,7 +88,7 @@ public class ProductService {
                     vdto.setVariantId(v.getId());
                     vdto.setPrice(v.getPrice());
                     vdto.setStockQuantity(v.getStockQuantity());
-
+                    vdto.setSaleType(v.getSaleType());
                     Set<Long> imageIds =
                             v.getAttributes().stream()
                                     .flatMap(a -> a.getImages().stream())
