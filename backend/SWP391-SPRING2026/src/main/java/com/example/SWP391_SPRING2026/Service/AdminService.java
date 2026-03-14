@@ -72,7 +72,7 @@ public class AdminService {
             UserStatus status,
             Pageable pageable) {
 
-        Specification<Users> spec = Specification.where(null);
+        Specification<Users> spec = Specification.allOf();
 
         if (StringUtils.hasText(keyword)) {
             spec = spec.and(UserSpecifications.search(keyword));
@@ -90,19 +90,6 @@ public class AdminService {
                 .map(this::mapToResponse);
     }
 
-    public static Specification<Users> search(String keyword) {
-
-        return (root, query, cb) -> {
-
-            String pattern = "%" + keyword.toLowerCase() + "%";
-
-            return cb.or(
-                    cb.like(cb.lower(root.get("email")), pattern),
-                    cb.like(cb.lower(root.get("phone")), pattern),
-                    cb.like(cb.lower(root.get("fullName")), pattern)
-            );
-        };
-    }
 
 
     @Transactional(readOnly = true)

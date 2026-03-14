@@ -9,13 +9,18 @@ public class UserSpecifications {
 
     private UserSpecifications() {}
 
-    public static Specification<Users> keywordContains(String keyword) {
+
+
+    public static Specification<Users> search(String keyword) {
+
         return (root, query, cb) -> {
-            String like = "%" + keyword.toLowerCase().trim() + "%";
+
+            String pattern = "%" + keyword.toLowerCase() + "%";
+
             return cb.or(
-                    cb.like(cb.lower(root.get("email")), like),
-                    cb.like(cb.lower(root.get("phone")), like),
-                    cb.like(cb.lower(root.get("fullName")), like)
+                    cb.like(cb.lower(root.get("email")), pattern),
+                    cb.like(cb.lower(root.get("phone")), pattern),
+                    cb.like(cb.lower(root.get("fullName")), pattern)
             );
         };
     }
