@@ -1,9 +1,7 @@
 package com.example.SWP391_SPRING2026.Service;
 
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
-import com.example.SWP391_SPRING2026.Entity.Order;
-import com.example.SWP391_SPRING2026.Entity.Payment;
-import com.example.SWP391_SPRING2026.Entity.Shipment;
+import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
@@ -31,11 +29,11 @@ public class OrderConfirmService {
     private final EmailService emailService;
 
     /*
-     SUPPORT CONFIRM ORDER
+        OPERATION CONFIRM ORDER
      */
     public void confirmByOperation(Long orderId) {
 
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         if (order.getOrderStatus() != OrderStatus.SUPPORT_CONFIRMED) {
@@ -43,33 +41,49 @@ public class OrderConfirmService {
         }
 
         Shipment shipment = order.getShipment();
-
         if (shipment == null) {
             throw new RuntimeException("Shipment not initialized");
         }
 
+        /*
+            PREORDER VALIDATION
+         */
         if (order.getOrderType() == OrderType.PRE_ORDER) {
+
             preOrderService.validateReadyToShip(order);
+
             preOrderService.markReadyToShip(order);
         }
 
+        /*
+            PAYMENT VALIDATION
+         */
         List<Payment> payments = paymentRepository.findByOrder_Id(order.getId());
 
         for (Payment p : payments) {
+
             if (p.getMethod() != PaymentMethod.COD &&
                     p.getStatus() != PaymentStatus.SUCCESS) {
+
                 throw new RuntimeException("Online payment not completed");
             }
         }
 
+        /*
+            CREATE GHN ORDER
+         */
         String ghnCode = ghnService.createOrder(order);
 
         shipment.setGhnOrderCode(ghnCode);
         shipment.setStatus(ShipmentStatus.READY_TO_PICK);
 
+        /*
+            CALCULATE COD
+         */
         long codAmount = payments.stream()
-                .filter(p -> p.getMethod() == PaymentMethod.COD &&
-                        p.getStatus() == PaymentStatus.UNPAID)
+                .filter(p ->
+                        p.getMethod() == PaymentMethod.COD &&
+                                p.getStatus() == PaymentStatus.UNPAID)
                 .mapToLong(Payment::getAmount)
                 .sum();
 
@@ -82,7 +96,7 @@ public class OrderConfirmService {
     }
 
     /*
-     WEBHOOK UPDATE FROM GHN
+        GHN WEBHOOK UPDATE
      */
     public void updateFromWebhook(String ghnCode, String ghnStatus) {
 
@@ -98,8 +112,7 @@ public class OrderConfirmService {
         }
 
         /*
-         Idempotent webhook
-         GHN gửi lại cũng không update
+            IDEMPOTENT
          */
         if (oldStatus == newStatus) {
             return;
@@ -111,13 +124,9 @@ public class OrderConfirmService {
 
         switch (newStatus) {
 
-            case PICKING -> {
-                // nothing
-            }
+            case PICKING -> {}
 
-            case DELIVERING -> {
-                // nothing
-            }
+            case DELIVERING -> {}
 
             case DELIVERED -> {
 
@@ -130,7 +139,7 @@ public class OrderConfirmService {
                     if (p.getMethod() == PaymentMethod.COD &&
                             p.getStatus() == PaymentStatus.UNPAID) {
 
-                        p.setStatus(PaymentStatus.PAID);
+                        p.setStatus(PaymentStatus.SUCCESS);
                         p.setPaidAt(LocalDateTime.now());
 
                         paymentRepository.save(p);
@@ -139,20 +148,15 @@ public class OrderConfirmService {
 
                 shipment.setCodCollected(true);
 
-                order.setOrderStatus(OrderStatus.COMPLETED);
-
                 if (order.getOrderType() == OrderType.PRE_ORDER) {
                     preOrderService.markFulfilled(order);
+                } else {
+                    order.setOrderStatus(OrderStatus.COMPLETED);
                 }
 
-                /*
-                 SEND EMAIL ONLY ONCE
-                 */
                 if (oldStatus != ShipmentStatus.DELIVERED) {
 
-                    String email = order.getAddress()
-                            .getUser()
-                            .getEmail();
+                    String email = order.getUser().getEmail();
 
                     emailService.sendOrderDeliveredEmail(
                             email,
@@ -164,6 +168,8 @@ public class OrderConfirmService {
             case FAILED -> order.setOrderStatus(OrderStatus.FAILED);
 
             case CANCELLED -> order.setOrderStatus(OrderStatus.CANCELLED);
+
+            case RETURNED -> order.setOrderStatus(OrderStatus.CANCELLED);
         }
 
         shipmentRepository.save(shipment);
@@ -171,7 +177,7 @@ public class OrderConfirmService {
     }
 
     /*
-     MAP GHN STATUS
+        MAP GHN STATUS
      */
     private ShipmentStatus mapStatus(String ghnStatus) {
 
@@ -196,10 +202,6 @@ public class OrderConfirmService {
             default -> null;
         };
     }
-
-    /*
-     API SUPPORT
-     */
 
     public List<OrderResponseDTO> getAllOrders() {
 
