@@ -31,6 +31,7 @@ public class ManagerController {
     private final VariantAttributeImageService  variantAttributeImageService;
     private final ProductComboService comboService;
     private final PreOrderService preOrderService;
+    private final DashboardService dashboardService;
     // ===================== PRODUCT =====================
 
     @PostMapping("/products")
@@ -169,6 +170,12 @@ public class ManagerController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<ProductComboResponseDTO> updateCombo(@PathVariable(name = "id")Long id, @RequestBody CreateComboRequestDTO dto){
         return ResponseEntity.ok(comboService.updateCombo(id, dto));
+    }
+
+    @GetMapping("/dashboard")
+    @ResponseStatus(HttpStatus.OK)
+    public DashboardResponseDTO getDashboard(){
+        return dashboardService.getDashboard();
     }
 
     @GetMapping("/combos")

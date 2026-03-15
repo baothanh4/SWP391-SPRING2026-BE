@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
-    private final DashboardService dashboardService;
 
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
@@ -97,10 +96,6 @@ public class AdminController {
         return ResponseEntity.ok("User disabled completed");
     }
 
-    @GetMapping("/dashboard")
-    @ResponseStatus(HttpStatus.OK)
-    public DashboardResponseDTO getDashboard(){
-        return dashboardService.getDashboard();
-    }
+
 
 }
