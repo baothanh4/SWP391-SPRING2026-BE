@@ -32,4 +32,8 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant,L
     ORDER BY pv.stockQuantity ASC
     """)
     List<LowStockDTO> findLowStockProducts(Integer threshold);
+
+    boolean existsBySku(String sku);
+
+    boolean existsBySkuAndIdNot(String sku, Long id);
 }

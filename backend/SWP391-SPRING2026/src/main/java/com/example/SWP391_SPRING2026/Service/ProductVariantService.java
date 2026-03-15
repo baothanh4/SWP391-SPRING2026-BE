@@ -23,6 +23,11 @@ public class ProductVariantService {
     private final PreOrderService preOrderService;
 
     public ProductVariantResponseDTO create(Long productId, ProductVariantRequestDTO dto) {
+
+        if (productVariantRepository.existsBySku(dto.getSku())) {
+            throw new RuntimeException("SKU already exists");
+        }
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product Not Found"));
 
@@ -38,12 +43,18 @@ public class ProductVariantService {
         productVariant.setPreorderFulfillmentDate(dto.getPreorderFulfillmentDate());
 
         productVariant.setProduct(product);
+
         productVariantRepository.save(productVariant);
 
         return toDTO(productVariant);
     }
 
     public ProductVariantResponseDTO update(Long variantId, ProductVariantRequestDTO dto) {
+
+        if (productVariantRepository.existsBySkuAndIdNot(dto.getSku(), variantId)) {
+            throw new RuntimeException("SKU already exists");
+        }
+
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new RuntimeException("Product Variant Not Found"));
 
