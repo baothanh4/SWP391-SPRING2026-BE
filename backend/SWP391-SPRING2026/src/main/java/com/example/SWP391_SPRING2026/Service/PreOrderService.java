@@ -119,10 +119,13 @@ public class PreOrderService {
     /*
         FIFO ALLOCATION
      */
+    @Transactional
     public void allocateAvailableStock(Long variantId) {
 
         ProductVariant variant = variantRepository.lockById(variantId)
                 .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
 
         List<PreOrder> queue = preOrderRepository.lockQueueByVariant(
                 variantId,
@@ -131,13 +134,14 @@ public class PreOrderService {
 
         for (PreOrder line : queue) {
 
-            int stock = variant.getStockQuantity();
+            if (stock < line.getQuantity()) {
+                break;
+            }
 
-            if (stock < line.getQuantity()) break;
+            stock -= line.getQuantity();
+            variant.setStockQuantity(stock);
 
-            variant.setStockQuantity(stock - line.getQuantity());
-
-            int current = variant.getCurrentPreorders();
+            int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
             variant.setCurrentPreorders(current - line.getQuantity());
 
             line.setAllocatedStock(true);
@@ -156,7 +160,11 @@ public class PreOrderService {
                 line.setPreorderStatus(PreOrderStatus.READY_FOR_PROCESSING);
                 order.setOrderStatus(OrderStatus.CONFIRMED);
             }
+
+            preOrderRepository.save(line);
         }
+
+        variantRepository.save(variant);
     }
 
     /*
