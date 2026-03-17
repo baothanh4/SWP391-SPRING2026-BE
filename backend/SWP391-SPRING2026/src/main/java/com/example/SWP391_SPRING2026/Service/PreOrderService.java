@@ -247,22 +247,32 @@ public class PreOrderService {
     }
 
     public boolean isFullRefundEligible(Order order) {
+
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
 
-        if (lines.isEmpty()) return false;
+        if (lines.isEmpty()) {
+            return false;
+        }
 
-        java.time.LocalDate today = java.time.LocalDate.now();
+        LocalDate today = LocalDate.now();
 
         return lines.stream().allMatch(line -> {
             ProductVariant variant = line.getProductVariant();
-            if (variant.getPreorderEndDate() == null) return false;
-            return PreOrderCancellationPolicy.isFullRefundEligible(today, variant.getPreorderEndDate());
+
+            if (variant == null || variant.getPreorderEndDate() == null) {
+                return false;
+            }
+
+            LocalDate deadline = variant.getPreorderEndDate().minusDays(2);
+            return !today.isAfter(deadline);
         });
     }
     public void cancelPreOrderOrder(Order order) {
+
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
 
         for (PreOrder line : lines) {
+
             if (line.getPreorderStatus() == PreOrderStatus.CANCELLED
                     || line.getPreorderStatus() == PreOrderStatus.FULFILLED) {
                 continue;
@@ -276,17 +286,21 @@ public class PreOrderService {
 
                 int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
                 variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
+
                 line.setSlotReleased(true);
+                line.setPreorderStatus(PreOrderStatus.CANCELLED);
+                continue;
             }
-            else if (line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT
+
+            if (line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT
                     || line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING
                     || line.getPreorderStatus() == PreOrderStatus.READY_TO_SHIP) {
 
                 int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
                 variant.setStockQuantity(stock + line.getQuantity());
-            }
 
-            line.setPreorderStatus(PreOrderStatus.CANCELLED);
+                line.setPreorderStatus(PreOrderStatus.CANCELLED);
+            }
         }
     }
 }
