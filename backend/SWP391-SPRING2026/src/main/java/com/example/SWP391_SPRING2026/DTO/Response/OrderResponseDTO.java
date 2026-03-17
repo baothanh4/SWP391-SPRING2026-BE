@@ -1,7 +1,7 @@
 package com.example.SWP391_SPRING2026.DTO.Response;
 
-import com.example.SWP391_SPRING2026.Enum.OrderStatus;
-import com.example.SWP391_SPRING2026.Enum.OrderType;
+import com.example.SWP391_SPRING2026.Entity.Shipment;
+import com.example.SWP391_SPRING2026.Enum.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,5 +22,9 @@ public class OrderResponseDTO {
     private Long remainingAmount;
     private AddressResponseDTO address;
     private LocalDateTime createdAt;
+    private PaymentMethod paymentMethod;
+    private PaymentStatus paymentStatus;
+    private String ghnOrderCode;
+    private ShipmentStatus shipmentStatus;
 
 }

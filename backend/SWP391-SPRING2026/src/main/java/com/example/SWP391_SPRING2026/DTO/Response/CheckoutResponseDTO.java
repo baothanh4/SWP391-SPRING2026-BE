@@ -13,6 +13,7 @@ public class CheckoutResponseDTO {
     private Long orderId;
     private String orderCode;
     private Long amount;
-    private PaymentMethod  paymentMethod;
+    private PaymentMethod paymentMethod;
     private String paymentUrl;
+    private PaymentStatus paymentStatus;
 }

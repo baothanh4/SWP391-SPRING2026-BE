@@ -44,12 +44,7 @@ public class Shipment {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
-    @PrePersist
-    public void generateCode(){
-        if(this.ghnOrderCode == null){
-            this.ghnOrderCode = generateRandomCode(14);
-        }
-    }
+
 
     private String generateRandomCode(int length){
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
