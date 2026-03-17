@@ -221,4 +221,8 @@ public class OrderConfirmService {
 
         return OrderMapper.toResponse(order);
     }
+
+    public ShipmentStatus mapStatusExternal(String ghnStatus) {
+        return mapStatus(ghnStatus);
+    }
 }

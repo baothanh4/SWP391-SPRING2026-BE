@@ -2,6 +2,7 @@ package com.example.SWP391_SPRING2026.Service;
 
 import com.example.SWP391_SPRING2026.Entity.PasswordResetToken;
 import com.example.SWP391_SPRING2026.Entity.Users;
+import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.PasswordResetTokenRepository;
 import com.example.SWP391_SPRING2026.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +57,10 @@ public class PasswordResetService {
 
         if (!token.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("OTP does not belong to this user");
+        }
+
+        if(passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new BadRequestException("New password must be different from old password");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
