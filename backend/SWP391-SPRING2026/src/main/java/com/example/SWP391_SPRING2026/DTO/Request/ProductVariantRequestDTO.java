@@ -16,5 +16,8 @@ public class ProductVariantRequestDTO {
         private Boolean allowPreorder;
         private Integer preorderLimit;
         private LocalDate preorderFulfillmentDate;
+
+        private LocalDate preorderStartDate;
+        private LocalDate preorderEndDate;
     }
 

@@ -29,4 +29,22 @@ public interface PreOrderRepository extends JpaRepository<PreOrder, Long> {
           and p.preorderStatus in :statuses
     """)
     List<PreOrder> findByOrderIdAndStatuses(Long orderId, Collection<PreOrderStatus> statuses);
+
+    @Query("""
+    select coalesce(sum(p.quantity), 0)
+    from PreOrder p
+    where p.order.user.id = :userId
+      and p.productVariant.id = :variantId
+      and p.preorderStatus in :statuses
+""")
+    Integer sumUserPreorderQuantityByVariant(
+            Long userId,
+            Long variantId,
+            Collection<PreOrderStatus> statuses
+    );
+
+    boolean existsByProductVariant_IdAndPreorderStatusIn(
+            Long variantId,
+            Collection<PreOrderStatus> statuses
+    );
 }

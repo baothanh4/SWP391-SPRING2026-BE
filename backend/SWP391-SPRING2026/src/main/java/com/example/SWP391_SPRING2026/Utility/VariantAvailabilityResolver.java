@@ -21,7 +21,14 @@ public final class VariantAvailabilityResolver {
             if (!allow) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (limit <= 0) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (current >= limit) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            if (variant.getPreorderStartDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            if (variant.getPreorderEndDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (variant.getPreorderFulfillmentDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
+
+            java.time.LocalDate today = java.time.LocalDate.now();
+
+            if (today.isBefore(variant.getPreorderStartDate())) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            if (today.isAfter(variant.getPreorderEndDate())) return VariantAvailabilityStatus.OUT_OF_STOCK;
 
             return VariantAvailabilityStatus.PRE_ORDER;
         }

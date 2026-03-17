@@ -6,14 +6,17 @@ import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.PreOrderRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
 
+import com.example.SWP391_SPRING2026.Utility.PreOrderCancellationPolicy;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
+import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 
 @Service
 @RequiredArgsConstructor
@@ -27,37 +30,17 @@ public class PreOrderService {
         CHECK AVAILABILITY
      */
     public VariantAvailabilityStatus resolveAvailability(ProductVariant variant) {
-
-        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
-
-        if (variant.getSaleType() == SaleType.IN_STOCK) {
-
-            return stock > 0 ?
-                    VariantAvailabilityStatus.IN_STOCK :
-                    VariantAvailabilityStatus.OUT_OF_STOCK;
-        }
-
-        if (variant.getSaleType() == SaleType.PRE_ORDER) {
-
-            boolean allow = Boolean.TRUE.equals(variant.getAllowPreorder());
-
-            int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
-            int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-
-            if (!allow || limit <= 0 || current >= limit) {
-                return VariantAvailabilityStatus.OUT_OF_STOCK;
-            }
-
-            return VariantAvailabilityStatus.PRE_ORDER;
-        }
-
-        return VariantAvailabilityStatus.OUT_OF_STOCK;
+        return VariantAvailabilityResolver.resolve(variant);
     }
 
     /*
         RESERVE PREORDER SLOT
      */
     public void reserve(Order order, OrderItems item, ProductVariant variant, int quantity) {
+
+        if (resolveAvailability(variant) != VariantAvailabilityStatus.PRE_ORDER) {
+            throw new BadRequestException("Pre-order is not available");
+        }
 
         int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
         int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
@@ -260,6 +243,50 @@ public class PreOrderService {
 
                 line.setSlotReleased(true);
             }
+        }
+    }
+
+    public boolean isFullRefundEligible(Order order) {
+        List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        if (lines.isEmpty()) return false;
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        return lines.stream().allMatch(line -> {
+            ProductVariant variant = line.getProductVariant();
+            if (variant.getPreorderEndDate() == null) return false;
+            return PreOrderCancellationPolicy.isFullRefundEligible(today, variant.getPreorderEndDate());
+        });
+    }
+    public void cancelPreOrderOrder(Order order) {
+        List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        for (PreOrder line : lines) {
+            if (line.getPreorderStatus() == PreOrderStatus.CANCELLED
+                    || line.getPreorderStatus() == PreOrderStatus.FULFILLED) {
+                continue;
+            }
+
+            ProductVariant variant = variantRepository.lockById(line.getProductVariant().getId())
+                    .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+            if (line.getPreorderStatus() == PreOrderStatus.RESERVED
+                    || line.getPreorderStatus() == PreOrderStatus.AWAITING_STOCK) {
+
+                int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
+                variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
+                line.setSlotReleased(true);
+            }
+            else if (line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT
+                    || line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING
+                    || line.getPreorderStatus() == PreOrderStatus.READY_TO_SHIP) {
+
+                int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+                variant.setStockQuantity(stock + line.getQuantity());
+            }
+
+            line.setPreorderStatus(PreOrderStatus.CANCELLED);
         }
     }
 }

@@ -19,68 +19,110 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query(
             value = """
-                select
-                    p.id as id,
-                    p.name as name,
-                    p.brandName as brandName,
-                    p.status as status,
-                    p.productImage as productImage,
-                    min(v.price) as minPrice,
-                    max(v.price) as maxPrice,
-                    coalesce(sum(v.stockQuantity), 0) as totalStock
-                from Product p
-                join p.variants v
-                where
-                    (:status is null or p.status = :status)
-                    and (:brand is null or :brand = '' or lower(coalesce(p.brandName,'')) like lower(concat('%', :brand, '%')))
-                    and (:minPrice is null or v.price >= :minPrice)
-                    and (:maxPrice is null or v.price <= :maxPrice)
-                    and (:inStock is null or :inStock = false or v.stockQuantity > 0)
-                    and (
-                        :keyword is null or :keyword = '' or
-                        lower(coalesce(p.name,'')) like lower(concat('%', :keyword, '%'))
-                        or lower(coalesce(p.description,'')) like lower(concat('%', :keyword, '%'))
-                        or lower(coalesce(p.brandName,'')) like lower(concat('%', :keyword, '%'))
-                        or lower(coalesce(v.sku,'')) like lower(concat('%', :keyword, '%'))
-                        or exists (
-                            select 1
-                            from VariantAttribute a
-                            where a.productVariant = v
-                              and (
-                                   lower(coalesce(a.attributeName,'')) like lower(concat('%', :keyword, '%'))
-                                or lower(coalesce(a.attributeValue,'')) like lower(concat('%', :keyword, '%'))
-                              )
+            select
+                p.id as id,
+                p.name as name,
+                p.brandName as brandName,
+                p.status as status,
+                p.productImage as productImage,
+                min(v.price) as minPrice,
+                max(v.price) as maxPrice,
+                coalesce(sum(case when v.saleType = com.example.SWP391_SPRING2026.Enum.SaleType.IN_STOCK
+                                  then coalesce(v.stockQuantity, 0)
+                                  else 0 end), 0) as totalStock
+            from Product p
+            join p.variants v
+            where
+                (:status is null or p.status = :status)
+                and (:brand is null or :brand = '' or lower(coalesce(p.brandName,'')) like lower(concat('%', :brand, '%')))
+                and (:minPrice is null or v.price >= :minPrice)
+                and (:maxPrice is null or v.price <= :maxPrice)
+                and (
+                    :inStock is null or :inStock = false
+                    or (
+                        (
+                            v.saleType = com.example.SWP391_SPRING2026.Enum.SaleType.IN_STOCK
+                            and coalesce(v.stockQuantity, 0) > 0
+                        )
+                        or
+                        (
+                            v.saleType = com.example.SWP391_SPRING2026.Enum.SaleType.PRE_ORDER
+                            and coalesce(v.allowPreorder, false) = true
+                            and coalesce(v.preorderLimit, 0) > coalesce(v.currentPreorders, 0)
+                            and v.preorderStartDate is not null
+                            and v.preorderEndDate is not null
+                            and v.preorderFulfillmentDate is not null
+                            and current_date >= v.preorderStartDate
+                            and current_date <= v.preorderEndDate
+                            and v.preorderFulfillmentDate >= v.preorderEndDate
                         )
                     )
-                group by p.id, p.name, p.brandName, p.status, p.productImage
-                """,
+                )
+                and (
+                    :keyword is null or :keyword = '' or
+                    lower(coalesce(p.name,'')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(p.description,'')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(p.brandName,'')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(v.sku,'')) like lower(concat('%', :keyword, '%'))
+                    or exists (
+                        select 1
+                        from VariantAttribute a
+                        where a.productVariant = v
+                          and (
+                               lower(coalesce(a.attributeName,'')) like lower(concat('%', :keyword, '%'))
+                            or lower(coalesce(a.attributeValue,'')) like lower(concat('%', :keyword, '%'))
+                          )
+                    )
+                )
+            group by p.id, p.name, p.brandName, p.status, p.productImage
+            """,
             countQuery = """
-                select count(distinct p.id)
-                from Product p
-                join p.variants v
-                where
-                    (:status is null or p.status = :status)
-                    and (:brand is null or :brand = '' or lower(coalesce(p.brandName,'')) like lower(concat('%', :brand, '%')))
-                    and (:minPrice is null or v.price >= :minPrice)
-                    and (:maxPrice is null or v.price <= :maxPrice)
-                    and (:inStock is null or :inStock = false or v.stockQuantity > 0)
-                    and (
-                        :keyword is null or :keyword = '' or
-                        lower(coalesce(p.name,'')) like lower(concat('%', :keyword, '%'))
-                        or lower(coalesce(p.description,'')) like lower(concat('%', :keyword, '%'))
-                        or lower(coalesce(p.brandName,'')) like lower(concat('%', :keyword, '%'))
-                        or lower(coalesce(v.sku,'')) like lower(concat('%', :keyword, '%'))
-                        or exists (
-                            select 1
-                            from VariantAttribute a
-                            where a.productVariant = v
-                              and (
-                                   lower(coalesce(a.attributeName,'')) like lower(concat('%', :keyword, '%'))
-                                or lower(coalesce(a.attributeValue,'')) like lower(concat('%', :keyword, '%'))
-                              )
+            select count(distinct p.id)
+            from Product p
+            join p.variants v
+            where
+                (:status is null or p.status = :status)
+                and (:brand is null or :brand = '' or lower(coalesce(p.brandName,'')) like lower(concat('%', :brand, '%')))
+                and (:minPrice is null or v.price >= :minPrice)
+                and (:maxPrice is null or v.price <= :maxPrice)
+                and (
+                    :inStock is null or :inStock = false
+                    or (
+                        (
+                            v.saleType = com.example.SWP391_SPRING2026.Enum.SaleType.IN_STOCK
+                            and coalesce(v.stockQuantity, 0) > 0
+                        )
+                        or
+                        (
+                            v.saleType = com.example.SWP391_SPRING2026.Enum.SaleType.PRE_ORDER
+                            and coalesce(v.allowPreorder, false) = true
+                            and coalesce(v.preorderLimit, 0) > coalesce(v.currentPreorders, 0)
+                            and v.preorderStartDate is not null
+                            and v.preorderEndDate is not null
+                            and v.preorderFulfillmentDate is not null
+                            and current_date >= v.preorderStartDate
+                            and current_date <= v.preorderEndDate
+                            and v.preorderFulfillmentDate >= v.preorderEndDate
                         )
                     )
-                """
+                )
+                and (
+                    :keyword is null or :keyword = '' or
+                    lower(coalesce(p.name,'')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(p.description,'')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(p.brandName,'')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(v.sku,'')) like lower(concat('%', :keyword, '%'))
+                    or exists (
+                        select 1
+                        from VariantAttribute a
+                        where a.productVariant = v
+                          and (
+                               lower(coalesce(a.attributeName,'')) like lower(concat('%', :keyword, '%'))
+                            or lower(coalesce(a.attributeValue,'')) like lower(concat('%', :keyword, '%'))
+                          )
+                    )
+                )
+            """
     )
     Page<ProductSearchProjection> searchPublicProducts(
             @Param("keyword") String keyword,

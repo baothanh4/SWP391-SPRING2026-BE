@@ -7,6 +7,7 @@ import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.*;
 import com.example.SWP391_SPRING2026.Utility.DepositPolicy;
+import com.example.SWP391_SPRING2026.Utility.PreOrderRule;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class CheckoutService {
     private final PreOrderService preOrderService;
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final PreOrderRepository preOrderRepository;
 
     public CheckoutResponseDTO checkout(Long userId,
                                         CheckoutRequestDTO dto,
@@ -146,6 +148,21 @@ public class CheckoutService {
                 orderItemRepository.save(orderItem);
 
                 if (availability == VariantAvailabilityStatus.PRE_ORDER) {
+                    int userExistingQty = preOrderRepository.sumUserPreorderQuantityByVariant(
+                            user.getId(),
+                            variant.getId(),
+                            java.util.EnumSet.of(
+                                    PreOrderStatus.RESERVED,
+                                    PreOrderStatus.AWAITING_STOCK,
+                                    PreOrderStatus.AWAITING_REMAINING_PAYMENT,
+                                    PreOrderStatus.READY_FOR_PROCESSING,
+                                    PreOrderStatus.READY_TO_SHIP
+                            )
+                    );
+
+                    if (userExistingQty + quantity > PreOrderRule.MAX_PER_USER_PER_VARIANT) {
+                        throw new BadRequestException("Each customer can pre-order at most 2 units for this variant");
+                    }
                     preOrderService.reserve(order, orderItem, variant, quantity);
                 }
 

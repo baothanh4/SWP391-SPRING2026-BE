@@ -37,7 +37,7 @@ public class OrderConfirmService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (order.getOrderStatus() != OrderStatus.SUPPORT_CONFIRMED) {
+        if (order.getOrderStatus() != OrderStatus.CONFIRMED) {
             throw new RuntimeException("Order not approved by support");
         }
 

@@ -28,4 +28,7 @@ public class ProductVariantResponseDTO {
     private VariantAvailabilityStatus availabilityStatus;
 
     private Long product_id;
+
+    private LocalDate preorderStartDate;
+    private LocalDate preorderEndDate;
 }

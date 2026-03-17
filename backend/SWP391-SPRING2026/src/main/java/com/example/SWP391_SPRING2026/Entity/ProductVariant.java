@@ -54,4 +54,10 @@ public class ProductVariant {
 
     @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<VariantAttribute> attributes = new ArrayList<>();
+
+    @Column(name = "preorder_start_date")
+    private LocalDate preorderStartDate;
+
+    @Column(name = "preorder_end_date")
+    private LocalDate preorderEndDate;
 }

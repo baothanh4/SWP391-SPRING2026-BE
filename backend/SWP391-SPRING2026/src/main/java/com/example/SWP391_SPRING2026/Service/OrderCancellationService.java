@@ -25,6 +25,7 @@ public class OrderCancellationService {
     private final ProductVariantRepository productVariantRepository;
     private final RefundRequestRepository refundRequestRepository;
     private final PaymentRepository paymentRepository;
+    private final PreOrderService preOrderService;
 
     // =========================================================
     // CUSTOMER CANCEL
@@ -43,7 +44,10 @@ public class OrderCancellationService {
             throw new BadRequestException("You are not allowed to cancel this order");
         }
 
-        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM) {
+        if (order.getOrderStatus() == OrderStatus.CANCELLED
+                || order.getOrderStatus() == OrderStatus.COMPLETED
+                || order.getOrderStatus() == OrderStatus.SHIPPING
+                || order.getOrderStatus() == OrderStatus.OPERATION_CONFIRMED) {
             throw new BadRequestException("Order cannot be cancelled");
         }
 
@@ -61,24 +65,33 @@ public class OrderCancellationService {
 
         // PRE_ORDER → mất cọc
         if (order.getOrderType() == OrderType.PRE_ORDER) {
+            preOrderService.cancelPreOrderOrder(order);
 
             long deposit = order.getDeposit() == null ? 0L : order.getDeposit();
+
+            boolean fullRefundEligible = preOrderService.isFullRefundEligible(order);
+
+            RefundPolicy refundPolicy = fullRefundEligible
+                    ? RefundPolicy.FULL_REFUND
+                    : RefundPolicy.DEPOSIT_FORFEIT;
 
             long refundAmount = RefundCalculator.calculate(
                     paidAmount,
                     deposit,
-                    RefundPolicy.DEPOSIT_FORFEIT
+                    refundPolicy
             );
 
             if (refundAmount > 0) {
                 createRefundRequest(
                         order,
                         RefundReason.CUSTOMER_CANCEL,
-                        RefundPolicy.DEPOSIT_FORFEIT,
+                        refundPolicy,
                         refundAmount,
                         userId,
                         "CUSTOMER",
-                        "Auto from customer cancel"
+                        fullRefundEligible
+                                ? "Auto full refund: cancelled before preorder deadline"
+                                : "Auto deposit forfeit: cancelled after preorder deadline"
                 );
             }
         }
@@ -117,6 +130,13 @@ public class OrderCancellationService {
 
         if (order.getShipment() != null) {
             order.getShipment().setStatus(ShipmentStatus.CANCELLED);
+        }
+        if (order.getOrderType() == OrderType.IN_STOCK) {
+            restockForInStockOrder(order);
+        }
+
+        if (order.getOrderType() == OrderType.PRE_ORDER) {
+            preOrderService.cancelPreOrderOrder(order);
         }
 
         long paidAmount = handlePayments(order.getId());

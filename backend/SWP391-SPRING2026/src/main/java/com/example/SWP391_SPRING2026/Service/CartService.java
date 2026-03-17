@@ -9,6 +9,7 @@ import com.example.SWP391_SPRING2026.DTO.Response.CartResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ComboItemDTO;
 import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.CartStatus;
+import com.example.SWP391_SPRING2026.Enum.PreOrderStatus;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.InsufficientStockException;
@@ -37,6 +38,7 @@ public class CartService {
     private final ProductVariantRepository productVariantRepository;
     private final ProductComboRepository  productComboRepository;
     private final EntityManager entityManager;
+    private final PreOrderRepository preOrderRepository;
 
     public CartResponseDTO getCurrentCart(Long userId) {
         Cart cart = cartRepository
@@ -81,7 +83,7 @@ public class CartService {
 
         ProductVariant variant = resolveVariant(dto);
 
-        validateSellableAndStock(variant, dto.getQuantity());
+        validateSellableAndStock(variant, dto.getQuantity(), userId);
 
         CartItem item = cartItemRepository
                 .findByCartIdAndProductVariantId(cart.getId(), variant.getId())
@@ -108,7 +110,7 @@ public class CartService {
                 throw new BadRequestException("Maximum quantity exceeded");
             }
 
-            validateSellableAndStock(variant, newQty);
+            validateSellableAndStock(variant, dto.getQuantity(), userId);
             item.setQuantity(newQty);
         }
 
@@ -142,7 +144,7 @@ public class CartService {
         }
 
         ProductVariant variant = item.getProductVariant();
-        validateSellableAndStock(variant, dto.getQuantity());
+        validateSellableAndStock(variant, dto.getQuantity(), userId);
 
         item.setQuantity(dto.getQuantity());
         cartItemRepository.save(item);
@@ -242,7 +244,7 @@ public class CartService {
         return variant;
     }
 
-    private void validateSellableAndStock(ProductVariant variant, int requestedQty) {
+    private void validateSellableAndStock(ProductVariant variant, int requestedQty, Long userId) {
 
         if (variant == null) {
             throw new ResourceNotFoundException("Variant not found");
@@ -280,6 +282,12 @@ public class CartService {
         // ================= PRE ORDER =================
         if (variant.getSaleType() == com.example.SWP391_SPRING2026.Enum.SaleType.PRE_ORDER) {
 
+            VariantAvailabilityStatus availability = VariantAvailabilityResolver.resolve(variant);
+
+            if (availability != VariantAvailabilityStatus.PRE_ORDER) {
+                throw new BadRequestException("Pre-order is not available");
+            }
+
             int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
             int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
 
@@ -296,9 +304,20 @@ public class CartService {
                 );
             }
 
+            Integer userExistingQty = preOrderRepository.sumUserPreorderQuantityByVariant(
+                    userId,
+                    variant.getId(),
+                    ACTIVE_PREORDER_STATUSES
+            );
+
+            int existingQty = userExistingQty == null ? 0 : userExistingQty;
+
+            if (existingQty + requestedQty > 2) {
+                throw new BadRequestException("Each customer can pre-order at most 2 units for this variant");
+            }
+
             return;
         }
-
     }
 
     private CartResponseDTO mapToResponse(Cart cart) {
@@ -491,4 +510,13 @@ public class CartService {
         // 2) discount = 0
         return BigDecimal.ZERO;
     }
+
+    private static final java.util.EnumSet<PreOrderStatus> ACTIVE_PREORDER_STATUSES =
+            java.util.EnumSet.of(
+                    PreOrderStatus.RESERVED,
+                    PreOrderStatus.AWAITING_STOCK,
+                    PreOrderStatus.AWAITING_REMAINING_PAYMENT,
+                    PreOrderStatus.READY_FOR_PROCESSING,
+                    PreOrderStatus.READY_TO_SHIP
+            );
 }

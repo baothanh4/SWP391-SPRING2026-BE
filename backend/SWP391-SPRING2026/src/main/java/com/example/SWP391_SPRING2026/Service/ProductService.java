@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 
 
 @Service
@@ -141,7 +142,11 @@ public class ProductService {
 
         Long stock = p.getTotalStock() == null ? 0L : p.getTotalStock();
         dto.setTotalStock(stock);
-        dto.setHasStock(stock > 0);
+
+        boolean hasInStock = stock > 0;
+        boolean hasPreOrder = p.getSaleTypes() != null && p.getSaleTypes().contains("PRE_ORDER");
+
+        dto.setHasStock(hasInStock || hasPreOrder);
 
         // ⭐ map saleTypes
         if (p.getSaleTypes() != null) {
@@ -189,6 +194,13 @@ public class ProductService {
                     vdto.setPrice(v.getPrice());
                     vdto.setStockQuantity(v.getStockQuantity());
                     vdto.setSaleType(v.getSaleType());
+                    vdto.setAllowPreorder(v.getAllowPreorder());
+                    vdto.setPreorderLimit(v.getPreorderLimit());
+                    vdto.setCurrentPreorders(v.getCurrentPreorders());
+                    vdto.setPreorderStartDate(v.getPreorderStartDate());
+                    vdto.setPreorderEndDate(v.getPreorderEndDate());
+                    vdto.setPreorderFulfillmentDate(v.getPreorderFulfillmentDate());
+                    vdto.setAvailabilityStatus(VariantAvailabilityResolver.resolve(v));
 
                     List<VariantAttributeResponseDTO> attrs = v.getAttributes().stream()
                             .map(a -> {

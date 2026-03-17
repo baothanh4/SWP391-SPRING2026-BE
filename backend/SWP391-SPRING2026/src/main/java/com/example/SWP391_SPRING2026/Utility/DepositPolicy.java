@@ -28,9 +28,11 @@ public final class DepositPolicy {
         if (depositAmount > totalAmount) {
             throw new IllegalArgumentException("Deposit cannot be greater than total");
         }
+
         long min = minDeposit(totalAmount);
-        if (depositAmount < min) {
-            throw new IllegalArgumentException("Deposit must be at least 30% of total");
+
+        if (depositAmount != min && depositAmount != totalAmount) {
+            throw new IllegalArgumentException("Deposit must be exactly 30% or 100% of total");
         }
     }
 }
