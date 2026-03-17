@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Service;
 
+import com.example.SWP391_SPRING2026.DTO.Response.ConfirmResponseOrderDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
@@ -31,7 +32,7 @@ public class OrderConfirmService {
     /*
         OPERATION CONFIRM ORDER
      */
-    public void confirmByOperation(Long orderId) {
+    public ConfirmResponseOrderDTO confirmByOperation(Long orderId) {
 
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -93,6 +94,13 @@ public class OrderConfirmService {
 
         shipmentRepository.save(shipment);
         orderRepository.save(order);
+
+        return new ConfirmResponseOrderDTO(
+                order.getOrderCode(),
+                ghnCode,
+                shipment.getStatus(),
+                order.getOrderStatus()
+        );
     }
 
     /*
@@ -126,11 +134,14 @@ public class OrderConfirmService {
 
             case PICKING -> {}
 
-            case DELIVERING -> {}
+            case DELIVERING -> {
+                shipment.setDeliveredAt(LocalDateTime.now());
+            }
 
             case DELIVERED -> {
 
-                shipment.setDeliveredAt(LocalDateTime.now());
+
+                shipment.setShippedAt(LocalDateTime.now());
 
                 List<Payment> payments = paymentRepository.findByOrder_Id(order.getId());
 
@@ -140,6 +151,7 @@ public class OrderConfirmService {
                             p.getStatus() == PaymentStatus.UNPAID) {
 
                         p.setStatus(PaymentStatus.SUCCESS);
+
                         p.setPaidAt(LocalDateTime.now());
 
                         paymentRepository.save(p);
@@ -201,6 +213,14 @@ public class OrderConfirmService {
 
             default -> null;
         };
+    }
+
+    public OrderResponseDTO getOrderByGhnCode(String ghnCode) {
+        Shipment shipment = shipmentRepository.findByGhnOrderCode(ghnCode).orElseThrow(() -> new RuntimeException("GHN order not found"));
+
+        Order order = shipment.getOrder();
+
+        return OrderMapper.toResponse(order);
     }
 
     public List<OrderResponseDTO> getAllOrders() {

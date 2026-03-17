@@ -323,7 +323,8 @@ public class CheckoutService {
                 order.getOrderCode(),
                 payableAmount,
                 dto.getPaymentMethod(),
-                paymentUrl
+                paymentUrl,
+                payment.getStatus()
         );
     }
 

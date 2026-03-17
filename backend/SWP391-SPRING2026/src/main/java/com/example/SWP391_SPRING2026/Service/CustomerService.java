@@ -7,6 +7,7 @@ import com.example.SWP391_SPRING2026.DTO.Response.CustomerAccountUpdateDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Address;
 import com.example.SWP391_SPRING2026.Entity.Order;
+import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.Users;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
@@ -128,13 +129,45 @@ public class CustomerService {
         dto.setDeposit(order.getDeposit());
         dto.setRemainingAmount(order.getRemainingAmount());
 
+        // ✅ FIX 1: createdAt
+        dto.setCreatedAt(order.getCreatedAt());
+
+        // ================= PAYMENT =================
+        if(order.getPayments() != null && !order.getPayments().isEmpty()){
+
+            Payment latestPayment = order.getPayments()
+                    .stream()
+                    .reduce((first, second) -> second)
+                    .orElse(null);
+
+            if(latestPayment != null){
+                dto.setPaymentMethod(latestPayment.getMethod());
+                dto.setPaymentStatus(latestPayment.getStatus());
+            }
+        }
+
+        // ================= SHIPMENT =================
+        if(order.getShipment() != null){
+            dto.setGhnOrderCode(order.getShipment().getGhnOrderCode());
+            dto.setShipmentStatus(order.getShipment().getStatus());
+        }
+
+        // ================= ADDRESS =================
         if(order.getAddress() != null){
+            Address address = order.getAddress();
+
             AddressResponseDTO addressDTO = new AddressResponseDTO();
 
-            addressDTO.setId(order.getAddress().getId());
-            addressDTO.setReceiverName(order.getAddress().getReceiverName());
-            addressDTO.setPhone(order.getAddress().getPhone());
-            addressDTO.setAddressLine(order.getAddress().getAddressLine());
+            addressDTO.setId(address.getId());
+            addressDTO.setReceiverName(address.getReceiverName());
+            addressDTO.setPhone(address.getPhone());
+            addressDTO.setAddressLine(address.getAddressLine());
+
+            // ✅ THÊM MẤY DÒNG NÀY
+            addressDTO.setWard(address.getWard());
+            addressDTO.setDistrict(address.getDistrict());
+            addressDTO.setProvince(address.getProvince());
+            addressDTO.setIsDefault(address.getIsDefault());
 
             dto.setAddress(addressDTO);
         }

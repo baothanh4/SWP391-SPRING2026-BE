@@ -1,9 +1,11 @@
 package com.example.SWP391_SPRING2026.Controller;
 
+import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Service.OrderConfirmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,5 +45,11 @@ public class GhnWebhookController {
         log.info("✅ Shipment updated");
 
         return ResponseEntity.ok("OK");
+    }
+
+    @GetMapping("/track/{ghnCode}")
+    @ResponseStatus(HttpStatus.OK)
+    public OrderResponseDTO trackOrder(@PathVariable(name = "ghnCode")String ghnOrderCode){
+        return orderConfirmService.getOrderByGhnCode(ghnOrderCode);
     }
 }

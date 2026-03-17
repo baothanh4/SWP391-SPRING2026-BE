@@ -1,5 +1,6 @@
 package com.example.SWP391_SPRING2026.Controller;
 
+import com.example.SWP391_SPRING2026.DTO.Response.ConfirmResponseOrderDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
@@ -45,11 +46,9 @@ public class OperationalOrderController {
 
     @PostMapping("/{orderId}/confirm")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<String> confirmByOperation(
+    public ResponseEntity<ConfirmResponseOrderDTO> confirmByOperation(
             @PathVariable Long orderId) {
 
-        orderConfirmService.confirmByOperation(orderId);
-
-        return ResponseEntity.ok("Order sent to GHN");
+        return ResponseEntity.ok(orderConfirmService.confirmByOperation(orderId));
     }
 }

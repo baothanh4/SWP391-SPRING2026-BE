@@ -52,6 +52,11 @@ public class PaymentService {
 
         if ("00".equals(params.get("vnp_ResponseCode"))) {
             payment.setStatus(PaymentStatus.SUCCESS);
+
+            if (order.getOrderStatus() == OrderStatus.WAITING_CONFIRM) {
+                order.setOrderStatus(OrderStatus.PAID);
+            }
+
             String email = order.getAddress().getUser().getEmail();
 
             emailService.sendPaymentSuccessEmail(
