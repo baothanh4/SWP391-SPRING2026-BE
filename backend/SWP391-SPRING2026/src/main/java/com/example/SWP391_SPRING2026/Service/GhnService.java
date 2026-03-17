@@ -194,4 +194,37 @@ public class GhnService {
             throw new RuntimeException("Cannot parse GHN response", e);
         }
     }
+
+    public String getOrderStatus(String ghnOrderCode) {
+
+        String url = baseUrl + "/v2/shipping-order/detail";
+
+        String body = """
+        {
+            "order_code": "%s"
+        }
+        """.formatted(ghnOrderCode);
+
+        HttpEntity<String> entity =
+                new HttpEntity<>(body, createHeaders());
+
+        ResponseEntity<String> response =
+                restTemplate.postForEntity(url, entity, String.class);
+
+        return extractStatus(response.getBody());
+    }
+
+    private String extractStatus(String responseBody) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(responseBody);
+
+            return root.path("data")
+                    .path("status")
+                    .asText();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot parse GHN status", e);
+        }
+    }
 }
