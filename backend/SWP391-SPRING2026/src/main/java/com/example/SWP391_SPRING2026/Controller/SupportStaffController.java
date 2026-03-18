@@ -13,6 +13,7 @@ import com.example.SWP391_SPRING2026.Enum.RefundReason;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Service.OrderCancellationService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +47,7 @@ public class SupportStaffController {
     // 2️⃣ Confirm đơn (Support duyệt)
     @PostMapping("/{orderId}/confirm")
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public ResponseEntity<String> confirmOrder(
             @PathVariable Long orderId) {
 
