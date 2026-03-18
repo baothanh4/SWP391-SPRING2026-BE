@@ -4,10 +4,14 @@ package com.example.SWP391_SPRING2026.Controller;
 import com.example.SWP391_SPRING2026.DTO.Request.CancelOrderByStaffRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.OrderResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.Order;
+import com.example.SWP391_SPRING2026.Entity.Payment;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
 import com.example.SWP391_SPRING2026.Enum.OrderStatus;
+import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
+import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
 import com.example.SWP391_SPRING2026.Enum.RefundReason;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
+import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Service.OrderCancellationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +30,7 @@ public class SupportStaffController {
 
     private final OrderRepository orderRepository;
     private final OrderCancellationService orderCancellationService;
+    private final PaymentRepository paymentRepository;
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
@@ -44,16 +49,26 @@ public class SupportStaffController {
     public ResponseEntity<String> confirmOrder(
             @PathVariable Long orderId) {
 
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM && order.getOrderStatus() != OrderStatus.PAID) {
-            throw new RuntimeException("Order is not waiting for support confirm");
+        if (!order.getOrderStatus().canBeConfirmedBySupport()) {
+            throw new RuntimeException("Invalid order state");
+        }
+
+        // ✅ validate payment
+        List<Payment> payments = paymentRepository.findByOrder_Id(orderId);
+
+        boolean valid = payments.stream().allMatch(p ->
+                p.getMethod() == PaymentMethod.COD ||
+                        p.getStatus() == PaymentStatus.SUCCESS
+        );
+
+        if (!valid) {
+            throw new RuntimeException("Payment not completed");
         }
 
         order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
-
-        orderRepository.save(order);
 
         return ResponseEntity.ok("Order confirmed by support");
     }

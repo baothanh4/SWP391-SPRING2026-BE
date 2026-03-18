@@ -114,6 +114,10 @@ public class OrderCancellationService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
+        if (!order.getOrderStatus().equals(OrderStatus.SUPPORT_CONFIRMED)) {
+            throw new RuntimeException("Invalid state for confirm");
+        }
+
         if (order.getOrderStatus() == OrderStatus.CANCELLED) {
             throw new BadRequestException("Order already cancelled");
         }
@@ -124,9 +128,6 @@ public class OrderCancellationService {
 
         order.setOrderStatus(OrderStatus.CANCELLED);
 
-        if (order.getOrderType() == OrderType.IN_STOCK) {
-            restockForInStockOrder(order);
-        }
 
         if (order.getShipment() != null) {
             order.getShipment().setStatus(ShipmentStatus.CANCELLED);
