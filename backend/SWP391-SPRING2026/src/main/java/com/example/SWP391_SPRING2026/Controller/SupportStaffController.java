@@ -54,8 +54,8 @@ public class SupportStaffController {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (!order.getOrderStatus().canBeConfirmedBySupport()) {
-            throw new RuntimeException("Invalid order state");
+        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM &&  order.getOrderStatus() != OrderStatus.PAID) {
+            throw new RuntimeException("Order status is WAITING_CONFIRM or PAID");
         }
 
         // ✅ validate payment
