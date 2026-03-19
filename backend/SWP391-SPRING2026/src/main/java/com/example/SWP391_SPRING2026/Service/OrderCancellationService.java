@@ -144,7 +144,6 @@ public class OrderCancellationService {
             if (refundRequestRepository.existsByOrderIdAndStatus(
                     order.getId(),
                     RefundRequestStatus.REQUESTED)) {
-
                 throw new BadRequestException("Refund already requested");
             }
             if (refundRequestRepository.existsByOrderIdAndStatus(

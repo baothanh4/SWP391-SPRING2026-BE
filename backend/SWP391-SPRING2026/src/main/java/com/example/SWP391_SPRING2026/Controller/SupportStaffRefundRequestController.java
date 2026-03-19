@@ -3,7 +3,6 @@ package com.example.SWP391_SPRING2026.Controller;
 import com.example.SWP391_SPRING2026.DTO.Request.RefundActionRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.RefundRequestResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.UserPrincipal;
-import com.example.SWP391_SPRING2026.Enum.RefundRequestStatus;
 import com.example.SWP391_SPRING2026.Service.RefundRequestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,29 +20,37 @@ public class SupportStaffRefundRequestController {
 
     @GetMapping("/requested")
     @ResponseStatus(HttpStatus.OK)
-    public List<RefundRequestResponseDTO> requested() {
-        return refundRequestService.getByStatus(RefundRequestStatus.REQUESTED);
+    public List<RefundRequestResponseDTO> getRequestedRefundRequests() {
+        return refundRequestService.getRequestedForSupport();
     }
 
-    @PostMapping("/{id}/approve")
+    @PostMapping("/{refundRequestId}/done")
     @ResponseStatus(HttpStatus.OK)
-    public RefundRequestResponseDTO approve(
+    public RefundRequestResponseDTO markRefundDone(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id,
+            @PathVariable Long refundRequestId,
             @RequestBody(required = false) RefundActionRequestDTO body
     ) {
         String note = body == null ? null : body.getNote();
-        return refundRequestService.approve(principal.getUserId(), id, note);
+        return refundRequestService.markDoneBySupport(
+                principal.getUserId(),
+                refundRequestId,
+                note
+        );
     }
 
-    @PostMapping("/{id}/reject")
+    @PostMapping("/{refundRequestId}/reject")
     @ResponseStatus(HttpStatus.OK)
-    public RefundRequestResponseDTO reject(
+    public RefundRequestResponseDTO rejectRefund(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id,
+            @PathVariable Long refundRequestId,
             @RequestBody(required = false) RefundActionRequestDTO body
     ) {
         String note = body == null ? null : body.getNote();
-        return refundRequestService.reject(principal.getUserId(), id, note);
+        return refundRequestService.rejectBySupport(
+                principal.getUserId(),
+                refundRequestId,
+                note
+        );
     }
 }

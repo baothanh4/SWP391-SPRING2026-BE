@@ -10,6 +10,7 @@ import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Service.OrderCancellationService;
+import com.example.SWP391_SPRING2026.Service.PreOrderService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class SupportStaffController {
     private final OrderRepository orderRepository;
     private final OrderCancellationService orderCancellationService;
     private final PaymentRepository paymentRepository;
+    private final PreOrderService preOrderService;
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
@@ -46,17 +48,18 @@ public class SupportStaffController {
     @PostMapping("/{orderId}/confirm")
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    public ResponseEntity<String> confirmOrder(
-            @PathVariable Long orderId) {
+    public ResponseEntity<String> confirmOrder(@PathVariable Long orderId) {
 
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM &&  order.getOrderStatus() != OrderStatus.PAID && order.getOrderStatus() != OrderStatus.PENDING_PAYMENT) {
-            throw new RuntimeException("Order status is WAITING_CONFIRM or PAID");
+        if (order.getOrderStatus() != OrderStatus.WAITING_CONFIRM
+                && order.getOrderStatus() != OrderStatus.PAID
+                && order.getOrderStatus() != OrderStatus.PENDING_PAYMENT
+                && order.getOrderStatus() != OrderStatus.CONFIRMED) {
+            throw new RuntimeException("Order status is not valid for support confirm");
         }
 
-        // ✅ validate payment
         List<Payment> payments = paymentRepository.findByOrder_Id(orderId);
 
         boolean valid = payments.stream().allMatch(p ->
@@ -70,6 +73,16 @@ public class SupportStaffController {
 
         order.setApprovalStatus(ApprovalStatus.SUPPORT_APPROVED);
         order.setSupportApprovedAt(LocalDateTime.now());
+
+        // Đồng bộ orderStatus để FE không phải sửa
+        if (order.getOrderType() == OrderType.IN_STOCK) {
+            order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+        } else if (order.getOrderType() == OrderType.PRE_ORDER) {
+            // Chỉ khi preorder đã sẵn sàng cho operation thì mới đổi status
+            if (preOrderService.isReadyForOperation(order)) {
+                order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+            }
+        }
 
         return ResponseEntity.ok("Order confirmed by support");
     }

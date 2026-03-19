@@ -16,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -56,9 +55,7 @@ public class CustomerController {
             @PathVariable Long addressId,
             @Valid @RequestBody AddressUpdateDTO dto
     ) {
-        return addressService.updateInfo(
-                principal.getUserId(), addressId, dto
-        );
+        return addressService.updateInfo(principal.getUserId(), addressId, dto);
     }
 
     @PatchMapping("/addresses/{addressId}/default")
@@ -87,38 +84,51 @@ public class CustomerController {
 
     @PutMapping("/profile")
     @ResponseStatus(HttpStatus.OK)
-    public CustomerAccountResponseDTO updateProfile(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody CustomerAccountUpdateDTO dto){
+    public CustomerAccountResponseDTO updateProfile(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CustomerAccountUpdateDTO dto
+    ) {
         return customerService.updateProfile(principal.getUserId(), dto);
     }
 
     @PutMapping("/profile/change-password")
     @ResponseStatus(HttpStatus.OK)
-    public void changePassword(@AuthenticationPrincipal UserPrincipal principal, @Valid @RequestBody ChangePasswordDTO dto){
+    public void changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChangePasswordDTO dto
+    ) {
         customerService.changePassword(principal.getUserId(), dto);
     }
 
     @DeleteMapping("/profile")
     @ResponseStatus(HttpStatus.OK)
-    public void disableAccount(@AuthenticationPrincipal UserPrincipal principal){
+    public void disableAccount(@AuthenticationPrincipal UserPrincipal principal) {
         customerService.disableAccount(principal.getUserId());
     }
 
     @PutMapping("/orders/{orderId}/cancel")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<String> cancelOrder(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long orderId){
+    public ResponseEntity<String> cancelOrder(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long orderId
+    ) {
         customerService.cancelOrderByCustomer(principal.getUserId(), orderId);
         return ResponseEntity.ok("Order Cancelled");
     }
 
     @GetMapping("/payments")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<List<PaymentHistoryResponseDTO>> getAllPayments(@AuthenticationPrincipal UserPrincipal principal){
+    public ResponseEntity<List<PaymentHistoryResponseDTO>> getAllPayments(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
         return ResponseEntity.ok(paymentService.getPaymentHistory(principal.getUserId()));
     }
 
     @GetMapping("/my/orders")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<List<OrderResponseDTO>> getAllOrders(@AuthenticationPrincipal UserPrincipal principal){
+    public ResponseEntity<List<OrderResponseDTO>> getAllOrders(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
         return ResponseEntity.ok(customerService.getMyOrders(principal.getUserId()));
     }
 
@@ -127,24 +137,20 @@ public class CustomerController {
     public ResponseEntity<OrderResponseDTO> getOrderById(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long orderId
-    ){
+    ) {
         return ResponseEntity.ok(
                 customerService.getMyOrderById(principal.getUserId(), orderId)
         );
-    }
-    @GetMapping("/refund-requests")
-    @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<List<RefundRequestResponseDTO>> getMyRefundRequests(
-            @AuthenticationPrincipal UserPrincipal principal
-    ) {
-        return ResponseEntity.ok(refundRequestService.getByCustomer(principal.getUserId()));
     }
 
     @GetMapping("/orders/{orderId}/refund-requests")
     @ResponseStatus(HttpStatus.OK)
     public ResponseEntity<List<RefundRequestResponseDTO>> getRefundRequestsByOrder(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long orderId
     ) {
-        return ResponseEntity.ok(refundRequestService.getByOrder(orderId));
+        return ResponseEntity.ok(
+                refundRequestService.getByOrderForCustomer(principal.getUserId(), orderId)
+        );
     }
 }

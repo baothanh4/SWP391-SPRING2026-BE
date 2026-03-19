@@ -343,7 +343,11 @@ public class PreOrderService {
         }
 
         if (allReadyForProcessing) {
-            order.setOrderStatus(OrderStatus.CONFIRMED);
+            if (order.getApprovalStatus() == ApprovalStatus.SUPPORT_APPROVED) {
+                order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+            } else {
+                order.setOrderStatus(OrderStatus.CONFIRMED);
+            }
             return;
         }
 

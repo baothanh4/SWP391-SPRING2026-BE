@@ -16,8 +16,8 @@ public class RefundRequestResponseDTO {
     private RefundRequestStatus status;
     private Long refundAmount;
     private String note;
-    private String createdByRole;
     private Long createdByUserId;
+    private String createdByRole;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
