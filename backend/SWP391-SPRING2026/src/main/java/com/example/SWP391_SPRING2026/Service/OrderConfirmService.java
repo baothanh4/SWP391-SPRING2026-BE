@@ -138,6 +138,8 @@ public class OrderConfirmService {
 
             case PICKING -> {}
 
+            case PICKED -> {}
+
             case DELIVERING -> {
                 shipment.setDeliveredAt(LocalDateTime.now());
             }
@@ -212,6 +214,8 @@ public class OrderConfirmService {
             case "delivery_fail" -> ShipmentStatus.FAILED;
 
             case "return" -> ShipmentStatus.RETURNED;
+
+            case "picked"  -> ShipmentStatus.PICKED;
 
             case "cancel" -> ShipmentStatus.CANCELLED;
 
