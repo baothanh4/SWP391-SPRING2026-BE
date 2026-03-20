@@ -26,5 +26,8 @@ public class OrderResponseDTO {
     private PaymentStatus paymentStatus;
     private String ghnOrderCode;
     private ShipmentStatus shipmentStatus;
+    private ApprovalStatus approvalStatus;
+    private LocalDateTime supportApprovedAt;
+    private LocalDateTime operationConfirmedAt;
 
 }

@@ -96,12 +96,15 @@ public class OrderConfirmService {
         shipmentRepository.save(shipment);
         orderRepository.save(order);
 
-        return new ConfirmResponseOrderDTO(
-                order.getOrderCode(),
-                ghnCode,
-                shipment.getStatus(),
-                order.getOrderStatus()
-        );
+        return ConfirmResponseOrderDTO.builder()
+                .orderCode(order.getOrderCode())
+                .ghnOrderCode(ghnCode)
+                .shipmentStatus(shipment.getStatus())
+                .orderStatus(order.getOrderStatus())
+                .approvalStatus(order.getApprovalStatus())
+                .supportApprovedAt(order.getSupportApprovedAt())
+                .operationConfirmedAt(order.getOperationConfirmedAt())
+                .build();
     }
 
     /*

@@ -9,15 +9,17 @@ import com.example.SWP391_SPRING2026.Enum.PaymentMethod;
 import com.example.SWP391_SPRING2026.Enum.PaymentStatus;
 import com.example.SWP391_SPRING2026.Enum.ShipmentStatus;
 
+import java.util.Comparator;
+
 public class OrderMapper {
 
-    public static OrderResponseDTO toResponse(Order order){
+    public static OrderResponseDTO toResponse(Order order) {
 
         Address a = order.getAddress();
 
         AddressResponseDTO addressDTO = null;
 
-        if(a != null){
+        if (a != null) {
             addressDTO = new AddressResponseDTO(
                     a.getId(),
                     a.getReceiverName(),
@@ -34,14 +36,14 @@ public class OrderMapper {
         PaymentMethod paymentMethod = null;
         PaymentStatus paymentStatus = null;
 
-        if(order.getPayments() != null && !order.getPayments().isEmpty()){
+        if (order.getPayments() != null && !order.getPayments().isEmpty()) {
 
             Payment latestPayment = order.getPayments()
                     .stream()
-                    .reduce((first, second) -> second)
+                    .max(Comparator.comparing(Payment::getCreatedAt))
                     .orElse(null);
 
-            if(latestPayment != null){
+            if (latestPayment != null) {
                 paymentMethod = latestPayment.getMethod();
                 paymentStatus = latestPayment.getStatus();
             }
@@ -50,7 +52,7 @@ public class OrderMapper {
         // ================= SHIPMENT =================
         String ghnCode = null;
         ShipmentStatus status = null;
-        if(order.getShipment() != null){
+        if (order.getShipment() != null) {
             ghnCode = order.getShipment().getGhnOrderCode();
             status = order.getShipment().getStatus();
         }
@@ -68,7 +70,10 @@ public class OrderMapper {
                 paymentMethod,
                 paymentStatus,
                 ghnCode,
-                status
+                status,
+                order.getApprovalStatus(),
+                order.getSupportApprovedAt(),
+                order.getOperationConfirmedAt()
         );
     }
 }

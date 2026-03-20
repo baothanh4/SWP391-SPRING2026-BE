@@ -1,0 +1,1 @@
+customer đặt cọc và SUPPORT phải CONFIRMED, sau đó Manager mới cập nhật hàng về. Sau khi hàng về thì Customer thanh toán tiền còn lại rồi Operation sẽ xác nhận và lên đơn GHN ( bug: customer cọc và manager báo hàng về thì trạng thái confirmed của sp tự động duyệt và ko thể GHN )
