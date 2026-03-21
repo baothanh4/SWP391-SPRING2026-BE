@@ -73,7 +73,8 @@ public class OrderMapper {
                 status,
                 order.getApprovalStatus(),
                 order.getSupportApprovedAt(),
-                order.getOperationConfirmedAt()
+                order.getOperationConfirmedAt(),
+                order.getShipment().getDeliveredAt()
         );
     }
 }

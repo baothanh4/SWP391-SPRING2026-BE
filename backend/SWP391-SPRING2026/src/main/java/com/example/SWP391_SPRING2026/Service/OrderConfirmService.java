@@ -141,11 +141,12 @@ public class OrderConfirmService {
             case PICKED -> {}
 
             case DELIVERING -> {
-                shipment.setDeliveredAt(LocalDateTime.now());
+
             }
 
             case DELIVERED -> {
 
+                shipment.setDeliveredAt(LocalDateTime.now());
 
                 shipment.setShippedAt(LocalDateTime.now());
 

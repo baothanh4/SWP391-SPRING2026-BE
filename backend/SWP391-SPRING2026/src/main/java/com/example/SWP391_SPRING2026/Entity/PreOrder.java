@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Entity;
 
 import com.example.SWP391_SPRING2026.Enum.PreOrderStatus;
+import com.example.SWP391_SPRING2026.Enum.RefundPolicy;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -52,4 +53,14 @@ public class PreOrder {
 
     @Column(name = "allocated_stock", nullable = false)
     private Boolean allocatedStock = false;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "refund_policy")
+    private RefundPolicy refundPolicy;
+
+    @Column(name = "refund_amount")
+    private Long refundAmount;
 }

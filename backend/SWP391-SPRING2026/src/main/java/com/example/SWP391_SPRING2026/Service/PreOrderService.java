@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Ref;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -279,9 +280,17 @@ public class PreOrderService {
             return !today.isAfter(deadline);
         });
     }
+
+    @Transactional
     public void cancelPreOrderOrder(Order order) {
 
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        if(lines == null || lines.isEmpty()) {
+            throw new BadRequestException("No preorder lines found for order " + order.getId());
+        }
+
+        LocalDate today = LocalDate.now();
 
         for (PreOrder line : lines) {
 
@@ -293,26 +302,157 @@ public class PreOrderService {
             ProductVariant variant = variantRepository.lockById(line.getProductVariant().getId())
                     .orElseThrow(() -> new BadRequestException("Variant not found"));
 
+            int quantity = line.getQuantity();
+
+            /*
+            CASE 1: CHƯA ALLOCATE STOCK → TRẢ SLOT
+         */
             if (line.getPreorderStatus() == PreOrderStatus.RESERVED
                     || line.getPreorderStatus() == PreOrderStatus.AWAITING_STOCK) {
 
                 int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-                variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
+                variant.setCurrentPreorders(Math.max(0, current - quantity));
 
                 line.setSlotReleased(true);
-                line.setPreorderStatus(PreOrderStatus.CANCELLED);
-                continue;
             }
 
-            if (line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT
+            /*
+            CASE 2: ĐÃ ALLOCATE → TRẢ STOCK
+         */
+
+
+            else if (line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT
                     || line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING
                     || line.getPreorderStatus() == PreOrderStatus.READY_TO_SHIP) {
 
                 int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
                 variant.setStockQuantity(stock + line.getQuantity());
-
-                line.setPreorderStatus(PreOrderStatus.CANCELLED);
             }
+            /*
+            REFUND LOGIC
+         */
+
+            RefundPolicy refundPolicy = resolveRefundPolicy(line, today);
+
+            line.setRefundPolicy(refundPolicy);
+
+            if(refundPolicy == RefundPolicy.FULL_REFUND){
+                line.setRefundAmount(line.getOrderItem().getPaidAmount());
+            }else{
+                line.setRefundAmount(0L);
+            }
+
+            line.setPreorderStatus(PreOrderStatus.CANCELLED);
+
+            variantRepository.save(variant);
+            preOrderRepository.save(line);
+        }
+        refreshPreOrderOrderStatus(order);
+    }
+
+    @Transactional
+    public void cancelBySupport(Order order,
+                                Long staffId,
+                                String reason,
+                                boolean forceFullRefund) {
+
+        List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        if (lines == null || lines.isEmpty()) {
+            throw new BadRequestException("No preorder lines found");
+        }
+
+        for (PreOrder line : lines) {
+
+            if (line.getPreorderStatus() == PreOrderStatus.CANCELLED
+                    || line.getPreorderStatus() == PreOrderStatus.FULFILLED) {
+                continue;
+            }
+
+            ProductVariant variant = variantRepository.lockById(
+                    line.getProductVariant().getId()
+            ).orElseThrow(() -> new BadRequestException("Variant not found"));
+
+            int qty = line.getQuantity();
+
+        /*
+            1. TRẢ SLOT nếu chưa allocate
+         */
+            if (line.getPreorderStatus() == PreOrderStatus.RESERVED
+                    || line.getPreorderStatus() == PreOrderStatus.AWAITING_STOCK) {
+
+                int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
+                variant.setCurrentPreorders(Math.max(0, current - qty));
+
+                line.setSlotReleased(true);
+            }
+
+        /*
+            2. TRẢ STOCK nếu đã allocate
+         */
+            else {
+                int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+                variant.setStockQuantity(stock + qty);
+            }
+
+        /*
+            3. REFUND (SUPPORT LUÔN CÓ QUYỀN OVERRIDE)
+         */
+            if (forceFullRefund) {
+                line.setRefundPolicy(RefundPolicy.FULL_REFUND);
+                line.setRefundAmount(line.getOrderItem().getPaidAmount());
+            } else {
+                RefundPolicy policy = resolveRefundPolicy(line, LocalDate.now());
+                line.setRefundPolicy(policy);
+
+                if (policy == RefundPolicy.FULL_REFUND) {
+                    line.setRefundAmount(line.getOrderItem().getPaidAmount());
+                } else {
+                    line.setRefundAmount(0L);
+                }
+            }
+
+        /*
+            4. AUDIT
+         */
+            line.setCancelledAt(LocalDateTime.now());
+
+
+        /*
+            5. STATUS
+         */
+            line.setPreorderStatus(PreOrderStatus.CANCELLED);
+
+            variantRepository.save(variant);
+            preOrderRepository.save(line);
+        }
+    }
+
+    public RefundPolicy resolveRefundPolicy(PreOrder line, LocalDate today) {
+
+        ProductVariant variant = line.getProductVariant();
+
+        if (variant == null || variant.getPreorderEndDate() == null) {
+            return RefundPolicy.DEPOSIT_FORFEIT;
+        }
+
+        LocalDate deadline = variant.getPreorderEndDate().minusDays(2);
+
+        switch (line.getPreorderStatus()) {
+
+            case RESERVED:
+                return RefundPolicy.FULL_REFUND;
+
+            case AWAITING_STOCK:
+                return !today.isAfter(deadline)
+                        ? RefundPolicy.FULL_REFUND
+                        : RefundPolicy.DEPOSIT_FORFEIT;
+
+            case AWAITING_REMAINING_PAYMENT:
+                return RefundPolicy.DEPOSIT_FORFEIT;
+
+            default:
+                return RefundPolicy.DEPOSIT_FORFEIT;
         }
     }
 

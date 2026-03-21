@@ -134,7 +134,12 @@ public class OrderCancellationService {
         }
 
         if (order.getOrderType() == OrderType.PRE_ORDER) {
-            preOrderService.cancelPreOrderOrder(order);
+            preOrderService.cancelBySupport(
+                    order,
+                    staffId,
+                    note,
+                    true // force full refund
+            );
         }
 
         long paidAmount = handlePayments(order.getId());
