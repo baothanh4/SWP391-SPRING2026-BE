@@ -37,6 +37,9 @@ public class OrderItems {
     @Column(name = "is_combo")
     private Boolean isCombo;
 
+    @Column(name = "paid_amount")
+    private Long paidAmount;
+
     @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonIgnore
     private List<ReturnRequest> returnRequests = new ArrayList<>();

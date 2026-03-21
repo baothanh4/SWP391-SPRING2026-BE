@@ -29,5 +29,5 @@ public class OrderResponseDTO {
     private ApprovalStatus approvalStatus;
     private LocalDateTime supportApprovedAt;
     private LocalDateTime operationConfirmedAt;
-
+    private LocalDateTime deliveredAt;
 }

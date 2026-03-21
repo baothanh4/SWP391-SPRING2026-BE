@@ -150,6 +150,7 @@ public class CustomerService {
         if(order.getShipment() != null){
             dto.setGhnOrderCode(order.getShipment().getGhnOrderCode());
             dto.setShipmentStatus(order.getShipment().getStatus());
+            dto.setDeliveredAt(order.getShipment().getDeliveredAt());
         }
 
         // ================= ADDRESS =================
