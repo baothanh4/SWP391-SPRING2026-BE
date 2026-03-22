@@ -128,6 +128,9 @@ public class CustomerService {
         dto.setTotalAmount(order.getTotalAmount());
         dto.setDeposit(order.getDeposit());
         dto.setRemainingAmount(order.getRemainingAmount());
+        dto.setApprovalStatus(order.getApprovalStatus());
+        dto.setSupportApprovedAt(order.getSupportApprovedAt());
+        dto.setOperationConfirmedAt(order.getOperationConfirmedAt());
 
         // ✅ FIX 1: createdAt
         dto.setCreatedAt(order.getCreatedAt());

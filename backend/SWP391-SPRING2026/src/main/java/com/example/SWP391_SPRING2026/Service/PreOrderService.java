@@ -406,7 +406,11 @@ public class PreOrderService {
                 line.setRefundPolicy(policy);
 
                 if (policy == RefundPolicy.FULL_REFUND) {
-                    line.setRefundAmount(line.getOrderItem().getPaidAmount());
+                    long paidAmount = line.getOrderItem().getPaidAmount() == null
+                            ? 0L
+                            : line.getOrderItem().getPaidAmount();
+
+                    line.setRefundAmount(paidAmount);
                 } else {
                     line.setRefundAmount(0L);
                 }
@@ -429,6 +433,16 @@ public class PreOrderService {
     }
 
     public RefundPolicy resolveRefundPolicy(PreOrder line, LocalDate today) {
+
+        Order order = line.getOrder();
+
+        // 🔥 FIX QUAN TRỌNG
+        boolean isFullyPaid = order.getRemainingAmount() == null
+                || order.getRemainingAmount() == 0;
+
+        if (isFullyPaid) {
+            return RefundPolicy.FULL_REFUND;
+        }
 
         ProductVariant variant = line.getProductVariant();
 
