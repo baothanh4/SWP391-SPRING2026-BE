@@ -32,7 +32,7 @@ public class OperationalOrderController {
     @GetMapping("/approved")
     @ResponseStatus(HttpStatus.OK)
     public Page<Order> getSupportApproved(Pageable pageable) {
-        Page<Order> page = orderRepository.findByApprovalStatusAndOrderStatusNotIn(
+        Page<Order> page = orderRepository.findOperationApprovedOrders(
                 ApprovalStatus.SUPPORT_APPROVED,
                 List.of(
                         OrderStatus.SHIPPING,
@@ -44,9 +44,10 @@ public class OperationalOrderController {
         );
 
         List<Order> filtered = page.getContent().stream()
+                .map(orderConfirmService::reconcileOperationalState)
                 .filter(order -> {
                     if (order.getOrderType() != OrderType.PRE_ORDER) {
-                        return true;
+                        return orderConfirmService.canProceedToOperationShipment(order);
                     }
                     return preOrderService.isReadyForOperation(order);
                 })

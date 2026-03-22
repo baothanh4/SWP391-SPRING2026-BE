@@ -188,6 +188,11 @@ public class PreOrderService {
             throw new BadRequestException("No preorder lines found for order " + order.getId());
         }
 
+        long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
+        if (remaining <= 0 && order.getApprovalStatus() == ApprovalStatus.SUPPORT_APPROVED) {
+            return;
+        }
+
         for (PreOrder line : lines) {
             if (line.getPreorderStatus() != PreOrderStatus.READY_FOR_PROCESSING) {
                 throw new BadRequestException("Preorder not ready for shipping");
@@ -229,6 +234,21 @@ public class PreOrderService {
     public boolean isRemainingPaymentOpened(Long orderId) {
 
         List<PreOrder> lines = preOrderRepository.findByOrder_Id(orderId);
+
+        if (lines == null || lines.isEmpty()) {
+            return false;
+        }
+
+        Order order = lines.get(0).getOrder();
+        long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
+
+        if (remaining <= 0) {
+            return false;
+        }
+
+        if (order.getApprovalStatus() == ApprovalStatus.SUPPORT_APPROVED) {
+            return true;
+        }
 
         return lines.stream()
                 .anyMatch(p -> p.getPreorderStatus() ==
@@ -477,6 +497,8 @@ public class PreOrderService {
             return;
         }
 
+        long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
+
         boolean anyAwaitingRemaining = lines.stream()
                 .anyMatch(line -> line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT);
 
@@ -490,6 +512,15 @@ public class PreOrderService {
                         line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING
                                 || line.getPreorderStatus() == PreOrderStatus.READY_TO_SHIP
                                 || line.getPreorderStatus() == PreOrderStatus.FULFILLED);
+
+        if (remaining <= 0) {
+            if (order.getApprovalStatus() == ApprovalStatus.SUPPORT_APPROVED) {
+                order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+            } else {
+                order.setOrderStatus(OrderStatus.CONFIRMED);
+            }
+            return;
+        }
 
         if (anyAwaitingRemaining) {
             order.setOrderStatus(OrderStatus.PENDING_PAYMENT);
@@ -514,6 +545,11 @@ public class PreOrderService {
 
         if (lines == null || lines.isEmpty()) {
             return false;
+        }
+
+        long remaining = order.getRemainingAmount() == null ? 0L : order.getRemainingAmount();
+        if (remaining <= 0 && order.getApprovalStatus() == ApprovalStatus.SUPPORT_APPROVED) {
+            return true;
         }
 
         return lines.stream()

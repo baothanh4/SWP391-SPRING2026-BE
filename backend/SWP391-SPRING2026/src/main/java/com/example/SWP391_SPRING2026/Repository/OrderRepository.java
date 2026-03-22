@@ -56,4 +56,19 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
             List<OrderStatus> excludedStatuses,
             Pageable pageable
     );
+
+    @Query("""
+    SELECT o
+    FROM Order o
+    WHERE o.orderStatus NOT IN :excludedStatuses
+      AND (
+            o.approvalStatus = :approvalStatus
+            OR o.supportApprovedAt IS NOT NULL
+          )
+    """)
+    Page<Order> findOperationApprovedOrders(
+            ApprovalStatus approvalStatus,
+            List<OrderStatus> excludedStatuses,
+            Pageable pageable
+    );
 }

@@ -38,7 +38,9 @@ public class OrderConfirmService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        if (order.getApprovalStatus() != ApprovalStatus.SUPPORT_APPROVED) {
+        reconcileOperationalState(order);
+
+        if (!canProceedToOperationShipment(order)) {
             throw new RuntimeException("Order not approved by support");
         }
 
@@ -237,6 +239,7 @@ public class OrderConfirmService {
         return orderRepository
                 .findAll()
                 .stream()
+                .map(this::reconcileOperationalState)
                 .map(OrderMapper::toResponse)
                 .toList();
     }
@@ -248,10 +251,101 @@ public class OrderConfirmService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Order not found"));
 
+        reconcileOperationalState(order);
+
         return OrderMapper.toResponse(order);
     }
 
     public ShipmentStatus mapStatusExternal(String ghnStatus) {
         return mapStatus(ghnStatus);
+    }
+
+    public boolean isSupportApprovedForOperations(Order order) {
+        return order.getApprovalStatus() == ApprovalStatus.SUPPORT_APPROVED
+                || order.getApprovalStatus() == ApprovalStatus.OPERATION_CONFIRMED
+                || order.getSupportApprovedAt() != null;
+    }
+
+    private boolean hasCompletedPayment(Order order) {
+        List<Payment> payments = paymentRepository.findByOrder_Id(order.getId());
+        if (payments == null || payments.isEmpty()) {
+            return false;
+        }
+
+        return payments.stream().allMatch(payment ->
+                payment.getMethod() == PaymentMethod.COD
+                        || payment.getStatus() == PaymentStatus.SUCCESS
+                        || payment.getStatus() == PaymentStatus.PAID
+        );
+    }
+
+    public boolean canProceedToOperationShipment(Order order) {
+        if (isSupportApprovedForOperations(order)) {
+            return true;
+        }
+
+        return order.getOrderType() == OrderType.IN_STOCK
+                && hasCompletedPayment(order)
+                && order.getOrderStatus() != OrderStatus.SHIPPING
+                && order.getOrderStatus() != OrderStatus.COMPLETED
+                && order.getOrderStatus() != OrderStatus.CANCELLED
+                && order.getOrderStatus() != OrderStatus.FAILED;
+    }
+
+    public Order reconcileOperationalState(Order order) {
+        if (order == null) {
+            return null;
+        }
+
+        boolean changed = false;
+
+        Shipment shipment = order.getShipment();
+        boolean hasGhnOrder = shipment != null && shipment.getGhnOrderCode() != null && !shipment.getGhnOrderCode().isBlank();
+        ShipmentStatus shipmentStatus = shipment != null ? shipment.getStatus() : null;
+
+        if (order.getOrderType() == OrderType.IN_STOCK) {
+            boolean supportApproved = isSupportApprovedForOperations(order);
+            boolean paymentCompleted = hasCompletedPayment(order);
+
+            if (order.getApprovalStatus() == ApprovalStatus.PENDING_SUPPORT && order.getSupportApprovedAt() != null) {
+                order.setApprovalStatus(ApprovalStatus.SUPPORT_APPROVED);
+                supportApproved = true;
+                changed = true;
+            }
+
+            if (!supportApproved && paymentCompleted) {
+                supportApproved = true;
+            }
+
+            if (supportApproved
+                    && !hasGhnOrder
+                    && shipmentStatus != ShipmentStatus.READY_TO_PICK
+                    && shipmentStatus != ShipmentStatus.PICKING
+                    && shipmentStatus != ShipmentStatus.PICKED
+                    && shipmentStatus != ShipmentStatus.DELIVERING
+                    && shipmentStatus != ShipmentStatus.DELIVERED
+                    && shipmentStatus != ShipmentStatus.FAILED
+                    && shipmentStatus != ShipmentStatus.CANCELLED
+                    && shipmentStatus != ShipmentStatus.RETURNED
+                    && order.getOrderStatus() != OrderStatus.SUPPORT_CONFIRMED) {
+                order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
+                changed = true;
+            }
+        }
+
+        if ((order.getApprovalStatus() == ApprovalStatus.OPERATION_CONFIRMED || order.getOperationConfirmedAt() != null)
+                && order.getOrderStatus() != OrderStatus.SHIPPING
+                && order.getOrderStatus() != OrderStatus.COMPLETED
+                && order.getOrderStatus() != OrderStatus.CANCELLED
+                && order.getOrderStatus() != OrderStatus.FAILED) {
+            order.setOrderStatus(OrderStatus.SHIPPING);
+            changed = true;
+        }
+
+        if (changed) {
+            return orderRepository.save(order);
+        }
+
+        return order;
     }
 }
