@@ -111,17 +111,13 @@ public class OrderCancellationService {
         Order order = orderRepository.lockById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        if (order.getApprovalStatus() != ApprovalStatus.SUPPORT_APPROVED) {
-            throw new RuntimeException("Invalid state for cancel");
+        if (order.getOrderStatus() == OrderStatus.CANCELLED
+                || order.getOrderStatus() == OrderStatus.COMPLETED
+                || order.getOrderStatus() == OrderStatus.SHIPPING
+                || order.getOrderStatus() == OrderStatus.OPERATION_CONFIRMED) {
+            throw new BadRequestException("Order cannot be cancelled");
         }
 
-        if (order.getOrderStatus() == OrderStatus.CANCELLED) {
-            throw new BadRequestException("Order already cancelled");
-        }
-
-        if (order.getOrderStatus() == OrderStatus.COMPLETED) {
-            throw new BadRequestException("Completed order cannot be cancelled");
-        }
 
         order.setOrderStatus(OrderStatus.CANCELLED);
 
