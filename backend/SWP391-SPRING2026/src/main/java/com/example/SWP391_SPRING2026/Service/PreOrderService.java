@@ -41,31 +41,38 @@ public class PreOrderService {
     /*
         RESERVE PREORDER SLOT
      */
-    public void reserve(Order order, OrderItems item, ProductVariant variant, int quantity) {
+    @Transactional
+    public void reserve(Order order, OrderItems item, Long variantId, int quantity) {
+
+        ProductVariant variant = variantRepository.lockById(variantId)
+                .orElseThrow(() -> new BadRequestException("Variant not found"));
 
         if (resolveAvailability(variant) != VariantAvailabilityStatus.PRE_ORDER) {
             throw new BadRequestException("Pre-order is not available");
         }
 
         int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-        int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
+        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+        int limit = variant.getPreorderLimit() == null ? Integer.MAX_VALUE : variant.getPreorderLimit();
 
-        if (current + quantity > limit) {
-            throw new BadRequestException("Preorder limit exceeded");
+        int available = stock - current;
+
+        int maxAllowed = Math.min(available, limit - current);
+
+        // 🔥 FIX OVERSALE
+        if (quantity > maxAllowed) {
+            throw new BadRequestException("Not enough preorder slots");
         }
 
         variant.setCurrentPreorders(current + quantity);
 
         PreOrder po = new PreOrder();
-
         po.setOrder(order);
         po.setOrderItem(item);
         po.setProductVariant(variant);
         po.setQuantity(quantity);
-
         po.setExpectedReleaseDate(variant.getPreorderFulfillmentDate());
         po.setPreorderStatus(PreOrderStatus.RESERVED);
-
         po.setReservedAt(LocalDateTime.now());
         po.setAllocatedStock(false);
         po.setSlotReleased(false);
@@ -92,13 +99,13 @@ public class PreOrderService {
     /*
         STOCK ARRIVED
      */
+    @Transactional
     public void markStockArrived(Long variantId, int quantity) {
 
         ProductVariant variant = variantRepository.lockById(variantId)
                 .orElseThrow(() -> new BadRequestException("Variant not found"));
 
         int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
-
         variant.setStockQuantity(stock + quantity);
 
         allocateAvailableStock(variantId);
@@ -120,28 +127,20 @@ public class PreOrderService {
                 EnumSet.of(PreOrderStatus.AWAITING_STOCK)
         );
 
-        Map<Long, Order> affectedOrders = new LinkedHashMap<>();
-
         for (PreOrder line : queue) {
 
-            if (stock < line.getQuantity()) {
-                break;
-            }
+            if (stock < line.getQuantity()) break;
 
             stock -= line.getQuantity();
             variant.setStockQuantity(stock);
 
+            // 🔥 giảm current preorder
             int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
             variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
 
             line.setAllocatedStock(true);
 
-            Order order = line.getOrder();
-            affectedOrders.put(order.getId(), order);
-
-            long remaining = order.getRemainingAmount() == null ? 0 : order.getRemainingAmount();
-
-            if (remaining > 0) {
+            if (line.getOrder().getRemainingAmount() > 0) {
                 line.setPreorderStatus(PreOrderStatus.AWAITING_REMAINING_PAYMENT);
             } else {
                 line.setPreorderStatus(PreOrderStatus.READY_FOR_PROCESSING);
@@ -151,10 +150,6 @@ public class PreOrderService {
         }
 
         variantRepository.save(variant);
-
-        for (Order affectedOrder : affectedOrders.values()) {
-            refreshPreOrderOrderStatus(affectedOrder);
-        }
     }
 
     /*
@@ -556,6 +551,33 @@ public class PreOrderService {
                 .allMatch(line -> line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING);
     }
 
+    public int getAvailablePreorder(ProductVariant v) {
+        int stock = v.getStockQuantity() == null ? 0 : v.getStockQuantity();
+        int limit = v.getPreorderLimit() == null ? Integer.MAX_VALUE : v.getPreorderLimit();
+        int current = v.getCurrentPreorders() == null ? 0 : v.getCurrentPreorders();
 
+        int available = stock - current;
+        int limitRemain = limit - current;
+
+        return Math.max(0, Math.min(available, limitRemain));
+    }
+
+    @Transactional
+    public void convertToInStock(Long variantId) {
+
+        ProductVariant variant = variantRepository.lockById(variantId)
+                .orElseThrow(() -> new BadRequestException("Variant not found"));
+
+        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+        int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
+
+        // 🔥 LOGIC CHUẨN
+        int realStock = stock - current;
+        
+        variant.setCurrentPreorders(0);
+        variant.setSaleType(SaleType.IN_STOCK);
+
+        variantRepository.save(variant);
+    }
 
 }
