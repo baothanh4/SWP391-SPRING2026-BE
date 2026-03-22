@@ -164,7 +164,7 @@ public class CheckoutService {
                     if (userExistingQty + quantity > PreOrderRule.MAX_PER_USER_PER_VARIANT) {
                         throw new BadRequestException("Each customer can pre-order at most 2 units for this variant");
                     }
-                    preOrderService.reserve(order, orderItem, variant, quantity);
+                    preOrderService.reserve(order, orderItem, variant.getId(), quantity);
                 }
 
                 totalAmount += price.longValue() * quantity;
