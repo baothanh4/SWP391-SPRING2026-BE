@@ -27,13 +27,11 @@ public class ProductVariantService {
     private final PreOrderRepository preOrderRepository;
     private final PreOrderService preOrderService;
 
-    private static final EnumSet<PreOrderStatus> ACTIVE_PREORDER_STATUSES =
+    // Chỉ những line CHƯA được allocate stock mới được chặn chuyển sang IN_STOCK
+    private static final EnumSet<PreOrderStatus> PENDING_STOCK_QUEUE_STATUSES =
             EnumSet.of(
                     PreOrderStatus.RESERVED,
-                    PreOrderStatus.AWAITING_STOCK,
-                    PreOrderStatus.AWAITING_REMAINING_PAYMENT,
-                    PreOrderStatus.READY_FOR_PROCESSING,
-                    PreOrderStatus.READY_TO_SHIP
+                    PreOrderStatus.AWAITING_STOCK
             );
 
     public ProductVariantResponseDTO create(Long productId, ProductVariantRequestDTO dto) {
@@ -48,7 +46,7 @@ public class ProductVariantService {
         ProductVariant productVariant = new ProductVariant();
         productVariant.setSku(dto.getSku());
         productVariant.setPrice(dto.getPrice());
-        productVariant.setStockQuantity(dto.getStockQuantity());
+        productVariant.setStockQuantity(dto.getStockQuantity() == null ? 0 : dto.getStockQuantity());
         productVariant.setSaleType(dto.getSaleType());
         productVariant.setCurrentPreorders(0);
         productVariant.setProduct(product);
@@ -69,29 +67,39 @@ public class ProductVariantService {
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new RuntimeException("Product Variant Not Found"));
 
+        SaleType currentSaleType = variant.getSaleType();
+        SaleType newSaleType = dto.getSaleType();
+
         int oldStock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
         int newStock = dto.getStockQuantity() == null ? 0 : dto.getStockQuantity();
 
-        if (variant.getSaleType() == SaleType.PRE_ORDER
-                && dto.getSaleType() == SaleType.IN_STOCK
-                && preOrderRepository.existsByProductVariant_IdAndPreorderStatusIn(
-                variantId,
-                ACTIVE_PREORDER_STATUSES
-        )) {
-            throw new RuntimeException("Cannot change PRE_ORDER variant to IN_STOCK while active pre-orders exist");
+        // Chỉ chặn chuyển PRE_ORDER -> IN_STOCK nếu vẫn còn line chưa được allocate stock
+        if (currentSaleType == SaleType.PRE_ORDER && newSaleType == SaleType.IN_STOCK) {
+            boolean hasPendingStockQueue = preOrderRepository.existsByProductVariant_IdAndPreorderStatusIn(
+                    variantId,
+                    PENDING_STOCK_QUEUE_STATUSES
+            );
+
+            if (hasPendingStockQueue) {
+                throw new RuntimeException(
+                        "Cannot switch PRE_ORDER to IN_STOCK while reserved/awaiting-stock preorders still exist"
+                );
+            }
         }
 
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
         variant.setStockQuantity(newStock);
-        variant.setSaleType(dto.getSaleType());
+        variant.setSaleType(newSaleType);
 
         applyPreOrderConfig(variant, dto);
 
         productVariantRepository.save(variant);
 
+        // Chỉ allocate sau khi stock mới đã được save vào variant
         if (variant.getSaleType() == SaleType.PRE_ORDER && newStock > oldStock) {
             preOrderService.allocateAvailableStock(variantId);
+            preOrderService.convertToInStockIfReady(variantId);
         }
 
         return toDTO(variant);
@@ -122,22 +130,19 @@ public class ProductVariantService {
                 .preorderStartDate(productVariant.getPreorderStartDate())
                 .preorderEndDate(productVariant.getPreorderEndDate())
                 .preorderFulfillmentDate(productVariant.getPreorderFulfillmentDate())
-                .preorderStartDate(productVariant.getPreorderStartDate())
-                .preorderEndDate(productVariant.getPreorderEndDate())
                 .availabilityStatus(VariantAvailabilityResolver.resolve(productVariant))
                 .product_id(productVariant.getProduct().getId())
                 .build();
     }
 
-    // HELPERS
     private void applyPreOrderConfig(ProductVariant variant, ProductVariantRequestDTO dto) {
 
         if (dto.getSaleType() == SaleType.PRE_ORDER) {
 
             Boolean allowPreorder = Boolean.TRUE.equals(dto.getAllowPreorder());
 
-            if (dto.getPreorderLimit() == null || dto.getPreorderLimit() <= 0) {
-                throw new RuntimeException("preorderLimit must be > 0");
+            if (dto.getPreorderLimit() != null && dto.getPreorderLimit() < 0) {
+                throw new RuntimeException("preorderLimit must be >= 0 or null");
             }
 
             if (dto.getPreorderStartDate() == null) {
@@ -160,21 +165,14 @@ public class ProductVariantService {
                 throw new RuntimeException("preorderFulfillmentDate must be on or after preorderEndDate");
             }
 
-            if (dto.getPreorderFulfillmentDate().isAfter(dto.getPreorderEndDate().plusDays(3))) {
+            if (dto.getPreorderFulfillmentDate()
+                    .isAfter(dto.getPreorderEndDate().plusDays(PreOrderRule.FULFILLMENT_MAX_DAYS_AFTER_END))) {
                 throw new RuntimeException("preorderFulfillmentDate cannot be more than 3 days after preorderEndDate");
             }
 
             int currentPreorders = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
-            if (dto.getPreorderLimit() < currentPreorders) {
+            if (dto.getPreorderLimit() != null && dto.getPreorderLimit() < currentPreorders) {
                 throw new RuntimeException("preorderLimit cannot be less than currentPreorders");
-            }
-            if (dto.getPreorderFulfillmentDate().isBefore(dto.getPreorderEndDate())) {
-                throw new RuntimeException("preorderFulfillmentDate must be on or after preorderEndDate");
-            }
-
-            if (dto.getPreorderFulfillmentDate()
-                    .isAfter(dto.getPreorderEndDate().plusDays(PreOrderRule.FULFILLMENT_MAX_DAYS_AFTER_END))) {
-                throw new RuntimeException("preorderFulfillmentDate cannot be more than 3 days after preorderEndDate");
             }
 
             variant.setAllowPreorder(allowPreorder);

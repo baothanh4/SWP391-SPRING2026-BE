@@ -15,12 +15,10 @@ public final class VariantAvailabilityResolver {
 
         if (saleType == SaleType.PRE_ORDER) {
             boolean allow = Boolean.TRUE.equals(variant.getAllowPreorder());
-            int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
+            Integer limitValue = variant.getPreorderLimit();
             int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
 
             if (!allow) return VariantAvailabilityStatus.OUT_OF_STOCK;
-            if (limit <= 0) return VariantAvailabilityStatus.OUT_OF_STOCK;
-            if (current >= limit) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (variant.getPreorderStartDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (variant.getPreorderEndDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (variant.getPreorderFulfillmentDate() == null) return VariantAvailabilityStatus.OUT_OF_STOCK;
@@ -29,6 +27,11 @@ public final class VariantAvailabilityResolver {
 
             if (today.isBefore(variant.getPreorderStartDate())) return VariantAvailabilityStatus.OUT_OF_STOCK;
             if (today.isAfter(variant.getPreorderEndDate())) return VariantAvailabilityStatus.OUT_OF_STOCK;
+
+            if (limitValue != null) {
+                if (limitValue < 0) return VariantAvailabilityStatus.OUT_OF_STOCK;
+                if (current >= limitValue) return VariantAvailabilityStatus.OUT_OF_STOCK;
+            }
 
             return VariantAvailabilityStatus.PRE_ORDER;
         }

@@ -209,7 +209,7 @@ public class ProductService {
                             );
                         }
 
-                        vdto.setAllowPreorder(true);
+                        vdto.setAllowPreorder(Boolean.TRUE.equals(v.getAllowPreorder()));
                         vdto.setPreorderLimit(v.getPreorderLimit());
                         vdto.setCurrentPreorders(v.getCurrentPreorders());
                         vdto.setPreorderStartDate(v.getPreorderStartDate());

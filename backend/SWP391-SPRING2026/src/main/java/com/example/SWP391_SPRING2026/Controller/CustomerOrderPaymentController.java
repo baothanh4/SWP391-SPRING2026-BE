@@ -8,6 +8,7 @@ import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.PaymentRepository;
 import com.example.SWP391_SPRING2026.Repository.OrderRepository;
+import com.example.SWP391_SPRING2026.Service.PreOrderService;
 import com.example.SWP391_SPRING2026.Service.VNPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -25,6 +26,7 @@ public class CustomerOrderPaymentController {
     private final OrderRepository orderRepository;
     private final PaymentRepository orderPaymentRepository;
     private final VNPayService vnPayService;
+    private final PreOrderService preOrderService;
     @PostMapping("/{orderId}/pay-remaining")
     @Transactional
     public PayRemainingResponseDTO payRemaining(
@@ -69,6 +71,9 @@ public class CustomerOrderPaymentController {
                 && existingRemaining.getStatus() == PaymentStatus.UNPAID) {
 
             existingRemaining.setStatus(PaymentStatus.CANCELLED);
+        }
+        if (!preOrderService.isRemainingPaymentOpened(orderId)) {
+            throw new BadRequestException("Remaining payment is not opened yet. Wait until stock arrives.");
         }
 
         order.setRemainingPaymentMethod(PaymentMethod.VNPAY);

@@ -75,9 +75,7 @@ public class SupportStaffController {
         if (order.getOrderType() == OrderType.IN_STOCK) {
             order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
         } else if (order.getOrderType() == OrderType.PRE_ORDER) {
-            if (preOrderService.isReadyForOperation(order)) {
-                order.setOrderStatus(OrderStatus.SUPPORT_CONFIRMED);
-            }
+            preOrderService.refreshPreOrderOrderStatus(order);
         }
 
         orderRepository.save(order);
