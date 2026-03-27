@@ -535,6 +535,20 @@ public class PreOrderService {
         return Math.max(0, limitValue - current);
     }
 
+    public boolean isReadyForOperation(Order order) {
+        List<PreOrder> lines = preOrderRepository.findByOrder_Id(order.getId());
+
+        if (lines == null || lines.isEmpty()) {
+            return false;
+        }
+
+        return lines.stream().allMatch(line ->
+                line.getPreorderStatus() == PreOrderStatus.READY_FOR_PROCESSING
+                        || line.getPreorderStatus() == PreOrderStatus.READY_TO_SHIP
+                        || line.getPreorderStatus() == PreOrderStatus.FULFILLED
+        );
+    }
+
     @Transactional
     public void convertToInStock(Long variantId) {
 

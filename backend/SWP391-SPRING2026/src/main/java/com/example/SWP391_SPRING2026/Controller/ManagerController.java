@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -35,6 +34,7 @@ public class ManagerController {
     private final ProductComboService comboService;
     private final PreOrderService preOrderService;
     private final DashboardService dashboardService;
+    private final PreOrderCampaignService preOrderCampaignService;
     // ===================== PRODUCT =====================
 
     @PostMapping("/products")
@@ -252,5 +252,49 @@ public class ManagerController {
             @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return browseProducts(keyword, brand, minPrice, maxPrice, inStock, pageable);
+    }
+
+    @PostMapping("/preorder-campaigns")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PreOrderCampaignResponseDTO createPreOrderCampaign(@Valid @RequestBody PreOrderCampaignRequestDTO dto) {
+        return preOrderCampaignService.create(dto);
+    }
+
+    @GetMapping("/preorder-campaigns")
+    @ResponseStatus(HttpStatus.OK)
+    public List<PreOrderCampaignResponseDTO> getPreOrderCampaigns() {
+        return preOrderCampaignService.getAll();
+    }
+
+    @GetMapping("/preorder-campaigns/{campaignId}")
+    @ResponseStatus(HttpStatus.OK)
+    public PreOrderCampaignResponseDTO getPreOrderCampaign(@PathVariable Long campaignId) {
+        return preOrderCampaignService.getById(campaignId);
+    }
+
+    @PutMapping("/preorder-campaigns/{campaignId}")
+    @ResponseStatus(HttpStatus.OK)
+    public PreOrderCampaignResponseDTO updatePreOrderCampaign(
+            @PathVariable Long campaignId,
+            @Valid @RequestBody PreOrderCampaignRequestDTO dto) {
+        return preOrderCampaignService.update(campaignId, dto);
+    }
+
+    @DeleteMapping("/preorder-campaigns/{campaignId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePreOrderCampaign(@PathVariable Long campaignId) {
+        preOrderCampaignService.delete(campaignId);
+    }
+
+    @PatchMapping("/preorder-campaigns/{campaignId}/activate")
+    @ResponseStatus(HttpStatus.OK)
+    public PreOrderCampaignResponseDTO activatePreOrderCampaign(@PathVariable Long campaignId) {
+        return preOrderCampaignService.activate(campaignId);
+    }
+
+    @PatchMapping("/preorder-campaigns/{campaignId}/deactivate")
+    @ResponseStatus(HttpStatus.OK)
+    public PreOrderCampaignResponseDTO deactivatePreOrderCampaign(@PathVariable Long campaignId) {
+        return preOrderCampaignService.deactivate(campaignId);
     }
 }

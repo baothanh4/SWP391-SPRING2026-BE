@@ -60,4 +60,8 @@ public class ProductVariant {
 
     @Column(name = "preorder_end_date")
     private LocalDate preorderEndDate;
+
+    @ManyToMany(mappedBy = "variants")
+    @JsonIgnore
+    private Set<PreOrderCampaign> campaigns = new HashSet<>();
 }
