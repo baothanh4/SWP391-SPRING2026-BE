@@ -7,8 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "preorder_campaigns")
@@ -41,11 +41,7 @@ public class PreOrderCampaign {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @ManyToMany
-    @JoinTable(
-            name = "campaign_variants",
-            joinColumns = @JoinColumn(name = "campaign_id"),
-            inverseJoinColumns = @JoinColumn(name = "variant_id")
-    )
-    private Set<ProductVariant> variants = new HashSet<>();
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PreOrderCampaignVariant> campaignVariants = new ArrayList<>();
 }

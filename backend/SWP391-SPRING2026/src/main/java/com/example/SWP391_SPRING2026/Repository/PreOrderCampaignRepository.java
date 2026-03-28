@@ -15,7 +15,8 @@ public interface PreOrderCampaignRepository extends JpaRepository<PreOrderCampai
     @Query("""
             select distinct c
             from PreOrderCampaign c
-            join c.variants v
+            join c.campaignVariants cv
+            join cv.variant v
             where c.isActive = true
               and v.id in :variantIds
               and c.startDate <= :endDate
@@ -30,7 +31,8 @@ public interface PreOrderCampaignRepository extends JpaRepository<PreOrderCampai
     @Query("""
             select distinct c
             from PreOrderCampaign c
-            join c.variants v
+            join c.campaignVariants cv
+            join cv.variant v
             where c.id <> :campaignId
               and c.isActive = true
               and v.id in :variantIds
@@ -47,7 +49,8 @@ public interface PreOrderCampaignRepository extends JpaRepository<PreOrderCampai
     @Query("""
             select c
             from PreOrderCampaign c
-            join c.variants v
+            join c.campaignVariants cv
+            join cv.variant v
             where v.id = :variantId
               and c.isActive = true
               and c.startDate <= :today

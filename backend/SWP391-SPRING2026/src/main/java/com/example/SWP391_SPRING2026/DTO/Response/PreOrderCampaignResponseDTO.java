@@ -22,5 +22,6 @@ public class PreOrderCampaignResponseDTO {
     private Integer currentPreorders;
     private Boolean isActive;
     private Set<Long> variantIds;
+    private Set<PreOrderCampaignVariantConfigResponseDTO> variantConfigs;
 }
 

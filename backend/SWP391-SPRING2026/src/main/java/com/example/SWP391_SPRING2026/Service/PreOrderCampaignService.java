@@ -1,9 +1,13 @@
 package com.example.SWP391_SPRING2026.Service;
 
+import com.example.SWP391_SPRING2026.DTO.Request.PreOrderCampaignVariantConfigRequestDTO;
 import com.example.SWP391_SPRING2026.DTO.Request.PreOrderCampaignRequestDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.PreOrderCampaignVariantConfigResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.PreOrderCampaignResponseDTO;
 import com.example.SWP391_SPRING2026.Entity.PreOrderCampaign;
+import com.example.SWP391_SPRING2026.Entity.PreOrderCampaignVariant;
 import com.example.SWP391_SPRING2026.Entity.ProductVariant;
+import com.example.SWP391_SPRING2026.Enum.PreOrderPaymentOption;
 import com.example.SWP391_SPRING2026.Enum.SaleType;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
@@ -13,9 +17,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,10 +39,11 @@ public class PreOrderCampaignService {
     public PreOrderCampaignResponseDTO create(PreOrderCampaignRequestDTO dto) {
         validateRequest(dto);
 
-        List<Long> variantIds = dto.getVariantIds().stream().toList();
+        List<VariantConfigInput> configs = resolveConfigInputs(dto);
+        List<Long> variantIds = configs.stream().map(VariantConfigInput::variantId).toList();
         validateNoOverlaps(variantIds, dto.getStartDate(), dto.getEndDate(), null, dto.getIsActive());
 
-        Set<ProductVariant> variants = fetchVariants(dto.getVariantIds());
+        Map<Long, ProductVariant> variantMap = fetchVariantsAsMap(new LinkedHashSet<>(variantIds));
 
         PreOrderCampaign campaign = PreOrderCampaign.builder()
                 .name(dto.getName().trim())
@@ -43,11 +53,12 @@ public class PreOrderCampaignService {
                 .preorderLimit(dto.getPreorderLimit())
                 .isActive(dto.getIsActive())
                 .currentPreorders(0)
-                .variants(variants)
                 .build();
 
+        attachCampaignVariants(campaign, configs, variantMap);
+
         PreOrderCampaign saved = preOrderCampaignRepository.save(campaign);
-        refreshVariantCampaignState(extractVariantIds(variants));
+        refreshVariantCampaignState(new LinkedHashSet<>(variantIds));
 
         return toDTO(saved);
     }
@@ -69,12 +80,13 @@ public class PreOrderCampaignService {
         validateRequest(dto);
 
         PreOrderCampaign campaign = getCampaignOrThrow(campaignId);
-        Set<Long> oldVariantIds = extractVariantIds(campaign.getVariants());
+        Set<Long> oldVariantIds = extractVariantIds(campaign.getCampaignVariants());
 
-        List<Long> newVariantIds = dto.getVariantIds().stream().toList();
+        List<VariantConfigInput> configs = resolveConfigInputs(dto);
+        List<Long> newVariantIds = configs.stream().map(VariantConfigInput::variantId).toList();
         validateNoOverlaps(newVariantIds, dto.getStartDate(), dto.getEndDate(), campaignId, dto.getIsActive());
 
-        Set<ProductVariant> variants = fetchVariants(dto.getVariantIds());
+        Map<Long, ProductVariant> variantMap = fetchVariantsAsMap(new LinkedHashSet<>(newVariantIds));
 
         campaign.setName(dto.getName().trim());
         campaign.setStartDate(dto.getStartDate());
@@ -82,12 +94,13 @@ public class PreOrderCampaignService {
         campaign.setFulfillmentDate(dto.getFulfillmentDate());
         campaign.setPreorderLimit(dto.getPreorderLimit());
         campaign.setIsActive(dto.getIsActive());
-        campaign.setVariants(variants);
+
+        attachCampaignVariants(campaign, configs, variantMap);
 
         PreOrderCampaign saved = preOrderCampaignRepository.save(campaign);
 
         Set<Long> impactedVariantIds = new LinkedHashSet<>(oldVariantIds);
-        impactedVariantIds.addAll(extractVariantIds(variants));
+        impactedVariantIds.addAll(newVariantIds);
         refreshVariantCampaignState(impactedVariantIds);
 
         return toDTO(saved);
@@ -95,7 +108,7 @@ public class PreOrderCampaignService {
 
     public void delete(Long campaignId) {
         PreOrderCampaign campaign = getCampaignOrThrow(campaignId);
-        Set<Long> impactedVariantIds = extractVariantIds(campaign.getVariants());
+        Set<Long> impactedVariantIds = extractVariantIds(campaign.getCampaignVariants());
 
         preOrderCampaignRepository.delete(campaign);
         refreshVariantCampaignState(impactedVariantIds);
@@ -105,7 +118,7 @@ public class PreOrderCampaignService {
         PreOrderCampaign campaign = getCampaignOrThrow(campaignId);
 
         validateNoOverlaps(
-                campaign.getVariants().stream().map(ProductVariant::getId).toList(),
+                campaign.getCampaignVariants().stream().map(cv -> cv.getVariant().getId()).toList(),
                 campaign.getStartDate(),
                 campaign.getEndDate(),
                 campaignId,
@@ -114,7 +127,7 @@ public class PreOrderCampaignService {
 
         campaign.setIsActive(true);
         PreOrderCampaign saved = preOrderCampaignRepository.save(campaign);
-        refreshVariantCampaignState(extractVariantIds(campaign.getVariants()));
+        refreshVariantCampaignState(extractVariantIds(campaign.getCampaignVariants()));
         return toDTO(saved);
     }
 
@@ -123,7 +136,7 @@ public class PreOrderCampaignService {
         campaign.setIsActive(false);
 
         PreOrderCampaign saved = preOrderCampaignRepository.save(campaign);
-        refreshVariantCampaignState(extractVariantIds(campaign.getVariants()));
+        refreshVariantCampaignState(extractVariantIds(campaign.getCampaignVariants()));
         return toDTO(saved);
     }
 
@@ -139,6 +152,60 @@ public class PreOrderCampaignService {
         if (dto.getPreorderLimit() != null && dto.getPreorderLimit() < 0) {
             throw new BadRequestException("preorderLimit must be >= 0 or null");
         }
+
+        if (dto.getVariantConfigs() == null || dto.getVariantConfigs().isEmpty()) {
+            throw new BadRequestException("variantConfigs is required");
+        }
+    }
+
+    private List<VariantConfigInput> resolveConfigInputs(PreOrderCampaignRequestDTO dto) {
+        List<VariantConfigInput> configs = dto.getVariantConfigs().stream()
+                .map(this::toValidatedConfigInput)
+                .toList();
+
+        Set<Long> uniqueIds = configs.stream()
+                .map(VariantConfigInput::variantId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (uniqueIds.size() != configs.size()) {
+            throw new BadRequestException("Duplicate variantId found in variantConfigs");
+        }
+
+        return configs;
+    }
+
+    private VariantConfigInput toValidatedConfigInput(PreOrderCampaignVariantConfigRequestDTO config) {
+        if (config.getVariantId() == null) {
+            throw new BadRequestException("variantId is required in variantConfigs");
+        }
+
+        if (config.getPreorderPaymentOption() == null) {
+            throw new BadRequestException("preorderPaymentOption is required in variantConfigs");
+        }
+
+        PreOrderPaymentOption option = config.getPreorderPaymentOption();
+        BigDecimal depositPercent = normalizePercent(config.getDepositPercent());
+
+        if (option == PreOrderPaymentOption.FULL_ONLY) {
+            return new VariantConfigInput(config.getVariantId(), null, option);
+        }
+
+        if (depositPercent == null) {
+            throw new BadRequestException("depositPercent is required for DEPOSIT_ONLY or FLEXIBLE option");
+        }
+
+        if (depositPercent.compareTo(BigDecimal.ZERO) <= 0 || depositPercent.compareTo(new BigDecimal("100")) >= 0) {
+            throw new BadRequestException("depositPercent must be > 0 and < 100");
+        }
+
+        return new VariantConfigInput(config.getVariantId(), depositPercent, option);
+    }
+
+    private BigDecimal normalizePercent(BigDecimal percent) {
+        if (percent == null) {
+            return null;
+        }
+        return percent.setScale(2, RoundingMode.HALF_UP);
     }
 
     private void validateNoOverlaps(
@@ -161,14 +228,40 @@ public class PreOrderCampaignService {
         }
     }
 
-    private Set<ProductVariant> fetchVariants(Set<Long> variantIds) {
+    private Map<Long, ProductVariant> fetchVariantsAsMap(Set<Long> variantIds) {
         List<ProductVariant> variants = productVariantRepository.findAllById(variantIds);
 
         if (variants.size() != variantIds.size()) {
             throw new ResourceNotFoundException("One or more product variants were not found");
         }
 
-        return new LinkedHashSet<>(variants);
+        return variants.stream().collect(Collectors.toMap(
+                ProductVariant::getId,
+                v -> v,
+                (a, b) -> a,
+                LinkedHashMap::new
+        ));
+    }
+
+    private void attachCampaignVariants(
+            PreOrderCampaign campaign,
+            List<VariantConfigInput> configs,
+            Map<Long, ProductVariant> variantMap
+    ) {
+        campaign.getCampaignVariants().clear();
+
+        for (VariantConfigInput config : configs) {
+            ProductVariant variant = variantMap.get(config.variantId());
+
+            PreOrderCampaignVariant link = PreOrderCampaignVariant.builder()
+                    .campaign(campaign)
+                    .variant(variant)
+                    .depositPercent(config.depositPercent())
+                    .preorderPaymentOption(config.preorderPaymentOption())
+                    .build();
+
+            campaign.getCampaignVariants().add(link);
+        }
     }
 
     private void refreshVariantCampaignState(Set<Long> variantIds) {
@@ -213,9 +306,9 @@ public class PreOrderCampaignService {
                 .orElseThrow(() -> new ResourceNotFoundException("Preorder campaign not found: " + campaignId));
     }
 
-    private Set<Long> extractVariantIds(Set<ProductVariant> variants) {
-        return variants.stream()
-                .map(ProductVariant::getId)
+    private Set<Long> extractVariantIds(Collection<PreOrderCampaignVariant> campaignVariants) {
+        return campaignVariants.stream()
+                .map(link -> link.getVariant().getId())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
@@ -229,8 +322,24 @@ public class PreOrderCampaignService {
                 .preorderLimit(campaign.getPreorderLimit())
                 .currentPreorders(campaign.getCurrentPreorders())
                 .isActive(campaign.getIsActive())
-                .variantIds(campaign.getVariants().stream().map(ProductVariant::getId).collect(Collectors.toSet()))
+                .variantIds(campaign.getCampaignVariants().stream()
+                        .map(link -> link.getVariant().getId())
+                        .collect(Collectors.toCollection(LinkedHashSet::new)))
+                .variantConfigs(campaign.getCampaignVariants().stream()
+                        .map(link -> PreOrderCampaignVariantConfigResponseDTO.builder()
+                                .variantId(link.getVariant().getId())
+                                .depositPercent(link.getDepositPercent())
+                                .preorderPaymentOption(link.getPreorderPaymentOption())
+                                .build())
+                        .collect(Collectors.toCollection(LinkedHashSet::new)))
                 .build();
+    }
+
+    private record VariantConfigInput(
+            Long variantId,
+            BigDecimal depositPercent,
+            PreOrderPaymentOption preorderPaymentOption
+    ) {
     }
 }
 

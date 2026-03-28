@@ -9,9 +9,7 @@ import org.hibernate.annotations.BatchSize;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Table(name = "product_variants")
@@ -61,7 +59,7 @@ public class ProductVariant {
     @Column(name = "preorder_end_date")
     private LocalDate preorderEndDate;
 
-    @ManyToMany(mappedBy = "variants")
+    @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
-    private Set<PreOrderCampaign> campaigns = new HashSet<>();
+    private List<PreOrderCampaignVariant> campaignVariants = new ArrayList<>();
 }

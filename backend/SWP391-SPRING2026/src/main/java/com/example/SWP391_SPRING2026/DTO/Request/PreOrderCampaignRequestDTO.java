@@ -28,6 +28,6 @@ public class PreOrderCampaignRequestDTO {
     private Boolean isActive;
 
     @NotEmpty
-    private Set<Long> variantIds;
+    private Set<PreOrderCampaignVariantConfigRequestDTO> variantConfigs;
 }
 
