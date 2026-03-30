@@ -2,9 +2,10 @@ package com.example.SWP391_SPRING2026.Controller;
 
 import com.example.SWP391_SPRING2026.DTO.Response.ProductComboResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductDetailResponseDTO;
+import com.example.SWP391_SPRING2026.DTO.Response.PreOrderCampaignResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductResponseDTO;
 import com.example.SWP391_SPRING2026.DTO.Response.ProductSearchItemDTO;
-import com.example.SWP391_SPRING2026.Entity.ProductCombo;
+import com.example.SWP391_SPRING2026.Service.PreOrderCampaignService;
 import com.example.SWP391_SPRING2026.Service.ProductComboService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ public class PublicProductController {
 
     private final ProductService productService;
     private final ProductComboService productComboService;
+    private final PreOrderCampaignService preOrderCampaignService;
 
     public Page<ProductSearchItemDTO> browseProducts(
             @RequestParam(required = false) String keyword,
@@ -84,5 +86,17 @@ public class PublicProductController {
                                                                       @RequestParam(defaultValue = "10")int size){
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(productComboService.getAllActiveCombos(pageable));
+    }
+
+    @GetMapping("/campaigns")
+    @ResponseStatus(HttpStatus.OK)
+    public List<PreOrderCampaignResponseDTO> getCampaigns() {
+        return preOrderCampaignService.getAll();
+    }
+
+    @GetMapping("/campaigns/{campaignId}")
+    @ResponseStatus(HttpStatus.OK)
+    public PreOrderCampaignResponseDTO getCampaignById(@PathVariable Long campaignId) {
+        return preOrderCampaignService.getById(campaignId);
     }
 }
