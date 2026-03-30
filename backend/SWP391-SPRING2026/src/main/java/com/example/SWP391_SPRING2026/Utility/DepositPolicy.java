@@ -6,11 +6,10 @@ import java.math.RoundingMode;
 public final class DepositPolicy {
     private DepositPolicy() {}
 
-    public static final BigDecimal MIN_DEPOSIT_RATE = new BigDecimal("0.30");
+    public static final BigDecimal MIN_DEPOSIT_RATE = BigDecimal.ZERO;
 
     /**
-     * Min deposit = ceil(total * 30%)
-     * CEILING để tránh case total lẻ -> (total * 30 / 100) bị làm tròn xuống < 30%
+     * Legacy helper: fixed minimum deposit is no longer enforced globally.
      */
     public static long minDeposit(long totalAmount) {
         if (totalAmount <= 0) return 0L;
@@ -29,10 +28,6 @@ public final class DepositPolicy {
             throw new IllegalArgumentException("Deposit cannot be greater than total");
         }
 
-        long min = minDeposit(totalAmount);
-
-        if (depositAmount != min && depositAmount != totalAmount) {
-            throw new IllegalArgumentException("Deposit must be exactly 30% or 100% of total");
-        }
+        // Campaign-specific rules are validated in checkout service.
     }
 }

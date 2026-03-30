@@ -247,7 +247,7 @@ public class CheckoutService {
         long payableAmount;
 
         if (saleType == SaleType.PRE_ORDER) {
-            Long requestedDeposit = dto.getDepositAmount();
+            Long requestedDeposit = normalizeRequestedDeposit(dto.getDepositAmount(), totalAmount);
 
             long minAllowed = preOrderBasePayableAmount;
             long maxAllowed = preOrderBasePayableAmount + preOrderFlexibleTopUpMax;
@@ -455,6 +455,23 @@ public class CheckoutService {
                 .multiply(percent)
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.CEILING)
                 .longValueExact();
+    }
+
+    private Long normalizeRequestedDeposit(Long requestedDepositInput, long totalAmount) {
+        if (requestedDepositInput == null) {
+            return null;
+        }
+
+        if (requestedDepositInput <= 0) {
+            throw new BadRequestException("depositAmount must be > 0");
+        }
+
+        // Backward-compatible: if FE sends 1..100, interpret it as deposit percent.
+        if (requestedDepositInput <= 100) {
+            return calculatePercentAmount(totalAmount, BigDecimal.valueOf(requestedDepositInput));
+        }
+
+        return requestedDepositInput;
     }
 
     private record VariantCheckoutPolicy(

@@ -9,7 +9,7 @@ public class CheckoutRequestDTO {
 
     private PaymentMethod paymentMethod;
 
-    // option chọn số tiền cọc (>= 30%, có thể = 100%)
+    // pre-order: có thể gửi số tiền cọc thực tế hoặc phần trăm (1..100), BE sẽ map theo rule campaign
     private Long depositAmount;
 
     // pre-order trả nốt: COD hoặc VNPAY
