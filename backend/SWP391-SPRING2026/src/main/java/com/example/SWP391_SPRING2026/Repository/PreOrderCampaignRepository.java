@@ -1,6 +1,7 @@
 package com.example.SWP391_SPRING2026.Repository;
 
 import com.example.SWP391_SPRING2026.Entity.PreOrderCampaign;
+import com.example.SWP391_SPRING2026.Entity.PreOrderCampaignVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -58,6 +59,21 @@ public interface PreOrderCampaignRepository extends JpaRepository<PreOrderCampai
             order by c.startDate desc, c.id desc
             """)
     List<PreOrderCampaign> findActiveCampaignsForVariant(
+            @Param("variantId") Long variantId,
+            @Param("today") LocalDate today
+    );
+
+    @Query("""
+            select cv
+            from PreOrderCampaignVariant cv
+            join fetch cv.campaign c
+            where cv.variant.id = :variantId
+              and c.isActive = true
+              and c.startDate <= :today
+              and c.endDate >= :today
+            order by c.startDate desc, c.id desc
+            """)
+    List<PreOrderCampaignVariant> findActiveVariantConfigsForVariant(
             @Param("variantId") Long variantId,
             @Param("today") LocalDate today
     );

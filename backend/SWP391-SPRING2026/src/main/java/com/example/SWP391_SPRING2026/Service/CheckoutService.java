@@ -6,7 +6,6 @@ import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Repository.*;
-import com.example.SWP391_SPRING2026.Utility.DepositPolicy;
 import com.example.SWP391_SPRING2026.Utility.PreOrderRule;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -14,7 +13,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ public class CheckoutService {
     private final EmailService emailService;
     private final UserRepository userRepository;
     private final PreOrderRepository preOrderRepository;
+    private final PreOrderCampaignRepository preOrderCampaignRepository;
 
     public CheckoutResponseDTO checkout(Long userId,
                                         CheckoutRequestDTO dto,
@@ -110,6 +114,9 @@ public class CheckoutService {
         orderRepository.save(order);
 
         Long totalAmount = 0L;
+        long preOrderBasePayableAmount = 0L;
+        long preOrderFlexibleTopUpMax = 0L;
+        Map<Long, VariantCheckoutPolicy> policyByVariantId = new HashMap<>();
 
         for (CartItem cartItem : cart.getItems()) {
 
@@ -149,6 +156,11 @@ public class CheckoutService {
                 orderItemRepository.save(orderItem);
 
                 if (availability == VariantAvailabilityStatus.PRE_ORDER) {
+                    VariantCheckoutPolicy policy = policyByVariantId.computeIfAbsent(
+                            variant.getId(),
+                            this::resolveCheckoutPolicyForVariant
+                    );
+
                     int userExistingQty = preOrderRepository.sumUserPreorderQuantityByVariant(
                             user.getId(),
                             variant.getId(),
@@ -164,6 +176,19 @@ public class CheckoutService {
                     if (userExistingQty + quantity > PreOrderRule.MAX_PER_USER_PER_VARIANT) {
                         throw new BadRequestException("Each customer can pre-order at most 2 units for this variant");
                     }
+
+                    long lineTotal = price.longValue() * quantity;
+                    long lineDeposit = calculatePercentAmount(lineTotal, policy.depositPercent());
+
+                    switch (policy.paymentOption()) {
+                        case FULL_ONLY -> preOrderBasePayableAmount += lineTotal;
+                        case DEPOSIT_ONLY -> preOrderBasePayableAmount += lineDeposit;
+                        case FLEXIBLE -> {
+                            preOrderBasePayableAmount += lineDeposit;
+                            preOrderFlexibleTopUpMax += (lineTotal - lineDeposit);
+                        }
+                    }
+
                     preOrderService.reserve(order, orderItem, variant.getId(), quantity);
                 }
 
@@ -222,20 +247,20 @@ public class CheckoutService {
         long payableAmount;
 
         if (saleType == SaleType.PRE_ORDER) {
-
-            long minDeposit = DepositPolicy.minDeposit(totalAmount);
-
             Long requestedDeposit = dto.getDepositAmount();
 
-            long depositToPay =
-                    (requestedDeposit == null)
-                            ? minDeposit
-                            : requestedDeposit;
+            long minAllowed = preOrderBasePayableAmount;
+            long maxAllowed = preOrderBasePayableAmount + preOrderFlexibleTopUpMax;
 
-            try {
-                DepositPolicy.validate(totalAmount, depositToPay);
-            } catch (IllegalArgumentException ex) {
-                throw new BadRequestException(ex.getMessage());
+            long depositToPay = (requestedDeposit == null)
+                    ? minAllowed
+                    : requestedDeposit;
+
+            if (depositToPay < minAllowed || depositToPay > maxAllowed) {
+                throw new BadRequestException(
+                        "depositAmount is invalid for current campaign rules. Allowed range: "
+                                + minAllowed + " to " + maxAllowed
+                );
             }
 
             if (dto.getPaymentMethod() != PaymentMethod.VNPAY) {
@@ -387,5 +412,54 @@ public class CheckoutService {
                 );
             }
         }
+    }
+
+    private VariantCheckoutPolicy resolveCheckoutPolicyForVariant(Long variantId) {
+        LocalDate today = LocalDate.now();
+
+        PreOrderCampaignVariant config = preOrderCampaignRepository
+                .findActiveVariantConfigsForVariant(variantId, today)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException(
+                        "No active preorder campaign config found for variant " + variantId
+                ));
+
+        PreOrderPaymentOption option = config.getPreorderPaymentOption();
+
+        if (option == null) {
+            throw new BadRequestException("preorderPaymentOption is missing for variant " + variantId);
+        }
+
+        BigDecimal depositPercent = config.getDepositPercent();
+
+        if (option == PreOrderPaymentOption.FULL_ONLY) {
+            return new VariantCheckoutPolicy(option, BigDecimal.valueOf(100));
+        }
+
+        if (depositPercent == null
+                || depositPercent.compareTo(BigDecimal.ZERO) <= 0
+                || depositPercent.compareTo(BigDecimal.valueOf(100)) >= 0) {
+            throw new BadRequestException("Invalid depositPercent for variant " + variantId);
+        }
+
+        return new VariantCheckoutPolicy(option, depositPercent);
+    }
+
+    private long calculatePercentAmount(long total, BigDecimal percent) {
+        if (total <= 0) {
+            return 0L;
+        }
+
+        return BigDecimal.valueOf(total)
+                .multiply(percent)
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.CEILING)
+                .longValueExact();
+    }
+
+    private record VariantCheckoutPolicy(
+            PreOrderPaymentOption paymentOption,
+            BigDecimal depositPercent
+    ) {
     }
 }
