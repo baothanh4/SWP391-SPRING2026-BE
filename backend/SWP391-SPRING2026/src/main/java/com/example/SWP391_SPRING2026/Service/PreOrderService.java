@@ -148,29 +148,43 @@ public class PreOrderService {
                 EnumSet.of(PreOrderStatus.AWAITING_STOCK)
         );
 
+        Map<Long, Order> affectedOrders = new LinkedHashMap<>();
+
         for (PreOrder line : queue) {
 
-            if (stock < line.getQuantity()) break;
+            if (stock < line.getQuantity()) {
+                break;
+            }
 
             stock -= line.getQuantity();
             variant.setStockQuantity(stock);
 
-            // 🔥 giảm current preorder
             int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
             variant.setCurrentPreorders(Math.max(0, current - line.getQuantity()));
 
             line.setAllocatedStock(true);
 
-            if (line.getOrder().getRemainingAmount() > 0) {
+            Long remainingAmount = line.getOrder().getRemainingAmount() == null
+                    ? 0L
+                    : line.getOrder().getRemainingAmount();
+
+            if (remainingAmount > 0) {
                 line.setPreorderStatus(PreOrderStatus.AWAITING_REMAINING_PAYMENT);
             } else {
                 line.setPreorderStatus(PreOrderStatus.READY_FOR_PROCESSING);
             }
 
+            affectedOrders.put(line.getOrder().getId(), line.getOrder());
             preOrderRepository.save(line);
         }
 
         variantRepository.save(variant);
+
+        for (Order order : affectedOrders.values()) {
+            refreshPreOrderOrderStatus(order);
+        }
+
+        convertToInStockIfReady(variantId);
     }
 
     /*
@@ -257,9 +271,18 @@ public class PreOrderService {
             return false;
         }
 
-        return lines.stream()
-                .anyMatch(p -> p.getPreorderStatus() ==
-                        PreOrderStatus.AWAITING_REMAINING_PAYMENT);
+        boolean allConvertedToInStock = lines.stream().allMatch(line ->
+                line.getProductVariant() != null
+                        && line.getProductVariant().getSaleType() == SaleType.IN_STOCK
+        );
+
+        if (!allConvertedToInStock) {
+            return false;
+        }
+
+        return lines.stream().anyMatch(line ->
+                line.getPreorderStatus() == PreOrderStatus.AWAITING_REMAINING_PAYMENT
+        );
     }
 
     public void releaseReservations(Order order) {
@@ -582,7 +605,7 @@ public class PreOrderService {
         int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
         int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
 
-        // 🔥 LOGIC CHUẨN
+
         int realStock = stock - current;
         
         variant.setCurrentPreorders(0);
@@ -603,11 +626,11 @@ public class PreOrderService {
                 .orElseThrow(() -> new BadRequestException("Variant not found"));
 
         boolean pendingQueue = hasPendingStockQueue(variantId);
-        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+        int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
 
         if (variant.getSaleType() == SaleType.PRE_ORDER
-                && stock > 0
-                && !pendingQueue) {
+                && !pendingQueue
+                && current == 0) {
 
             variant.setSaleType(SaleType.IN_STOCK);
             variant.setAllowPreorder(false);
