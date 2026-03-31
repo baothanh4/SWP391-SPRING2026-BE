@@ -38,12 +38,18 @@ public class SupportStaffController {
         return orderCancellationService.getAllOrders();
     }
 
-    @GetMapping("/{orderId}")
+    @GetMapping("/waiting")
+    @ResponseStatus(HttpStatus.OK)
+    public List<OrderResponseDTO> getWaitingOrders() {
+        return orderCancellationService.getWaitingOrders();
+    }
+
+    @GetMapping("/{orderId:\\d+}")
     public OrderResponseDTO getOrderById(@PathVariable Long orderId) {
         return orderCancellationService.getOrderById(orderId);
     }
 
-    @PostMapping("/{orderId}/confirm")
+    @PostMapping("/{orderId:\\d+}/confirm")
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     public ResponseEntity<ConfirmResponseOrderDTO> confirmOrder(@PathVariable Long orderId) {
@@ -95,7 +101,7 @@ public class SupportStaffController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{orderId}/cancel")
+    @PostMapping("/{orderId:\\d+}/cancel")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<String> cancelOrder(
             @AuthenticationPrincipal UserPrincipal principal,

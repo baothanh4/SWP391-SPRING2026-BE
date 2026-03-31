@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -169,6 +170,21 @@ public class OrderCancellationService {
 
         return orderRepository.findAll()
                 .stream()
+                .map(OrderMapper::toResponse)
+                .toList();
+    }
+
+    public List<OrderResponseDTO> getWaitingOrders() {
+        Set<OrderStatus> waitingStatuses = Set.of(
+                OrderStatus.WAITING_CONFIRM,
+                OrderStatus.PAID,
+                OrderStatus.PENDING_PAYMENT,
+                OrderStatus.CONFIRMED
+        );
+
+        return orderRepository.findAll()
+                .stream()
+                .filter(order -> waitingStatuses.contains(order.getOrderStatus()))
                 .map(OrderMapper::toResponse)
                 .toList();
     }
