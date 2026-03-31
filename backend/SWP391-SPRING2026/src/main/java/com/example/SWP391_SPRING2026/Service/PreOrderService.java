@@ -3,6 +3,7 @@ package com.example.SWP391_SPRING2026.Service;
 import com.example.SWP391_SPRING2026.Entity.*;
 import com.example.SWP391_SPRING2026.Enum.*;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
+import com.example.SWP391_SPRING2026.Repository.PreOrderCampaignRepository;
 import com.example.SWP391_SPRING2026.Repository.PreOrderRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
 
@@ -29,12 +30,35 @@ public class PreOrderService {
 
     private final PreOrderRepository preOrderRepository;
     private final ProductVariantRepository variantRepository;
+    private final PreOrderCampaignRepository preOrderCampaignRepository;
 
 
     /*
         CHECK AVAILABILITY
      */
     public VariantAvailabilityStatus resolveAvailability(ProductVariant variant) {
+        if (variant == null) {
+            return VariantAvailabilityStatus.OUT_OF_STOCK;
+        }
+
+        boolean pendingQueue = hasPendingStockQueue(variant.getId());
+        if (pendingQueue) {
+            return VariantAvailabilityStatus.PRE_ORDER;
+        }
+
+        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
+        if (stock > 0) {
+            return VariantAvailabilityStatus.IN_STOCK;
+        }
+
+        boolean hasActiveCampaign = !preOrderCampaignRepository
+                .findActiveCampaignsForVariant(variant.getId(), LocalDate.now())
+                .isEmpty();
+
+        if (hasActiveCampaign) {
+            return VariantAvailabilityStatus.PRE_ORDER;
+        }
+
         return VariantAvailabilityResolver.resolve(variant);
     }
 
@@ -578,14 +602,11 @@ public class PreOrderService {
         ProductVariant variant = variantRepository.lockById(variantId)
                 .orElseThrow(() -> new BadRequestException("Variant not found"));
 
-        boolean campaignClosed =
-                !Boolean.TRUE.equals(variant.getAllowPreorder()) ||
-                        (variant.getPreorderEndDate() != null && LocalDate.now().isAfter(variant.getPreorderEndDate()));
-
         boolean pendingQueue = hasPendingStockQueue(variantId);
+        int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
 
         if (variant.getSaleType() == SaleType.PRE_ORDER
-                && campaignClosed
+                && stock > 0
                 && !pendingQueue) {
 
             variant.setSaleType(SaleType.IN_STOCK);

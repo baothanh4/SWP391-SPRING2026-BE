@@ -7,6 +7,7 @@ import com.example.SWP391_SPRING2026.Entity.Product;
 import com.example.SWP391_SPRING2026.Entity.VariantAttributeImage;
 import com.example.SWP391_SPRING2026.Enum.ProductStatus;
 import com.example.SWP391_SPRING2026.Enum.SaleType;
+import com.example.SWP391_SPRING2026.Enum.VariantAvailabilityStatus;
 import com.example.SWP391_SPRING2026.Exception.BadRequestException;
 import com.example.SWP391_SPRING2026.Exception.ResourceNotFoundException;
 import com.example.SWP391_SPRING2026.Repository.ProductRepository;
@@ -21,13 +22,13 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
     private final ProductRepository productRepository;
+    private final PreOrderService preOrderService;
 
     public ProductResponseDTO createProduct(ProductRequestDTO dto){
         Product product = new Product();
@@ -197,19 +198,10 @@ public class ProductService {
                     vdto.setStockQuantity(v.getStockQuantity());
                     vdto.setSaleType(v.getSaleType());
 
-                    // ✅ FIX CHÍNH
                     if (v.getSaleType() == SaleType.PRE_ORDER) {
 
-                        if (v.getPreorderStartDate() == null ||
-                                v.getPreorderEndDate() == null ||
-                                v.getPreorderFulfillmentDate() == null) {
-
-                            throw new RuntimeException(
-                                    "Variant PRE_ORDER missing data. VariantId=" + v.getId()
-                            );
-                        }
-
-                        vdto.setAllowPreorder(Boolean.TRUE.equals(v.getAllowPreorder()));
+                        VariantAvailabilityStatus availability = preOrderService.resolveAvailability(v);
+                        vdto.setAllowPreorder(availability == VariantAvailabilityStatus.PRE_ORDER);
                         vdto.setPreorderLimit(v.getPreorderLimit());
                         vdto.setCurrentPreorders(v.getCurrentPreorders());
                         vdto.setPreorderStartDate(v.getPreorderStartDate());
@@ -220,7 +212,7 @@ public class ProductService {
                         vdto.setAllowPreorder(false);
                     }
 
-                    vdto.setAvailabilityStatus(VariantAvailabilityResolver.resolve(v));
+                    vdto.setAvailabilityStatus(preOrderService.resolveAvailability(v));
 
                     List<VariantAttributeResponseDTO> attrs = v.getAttributes().stream()
                             .map(a -> {

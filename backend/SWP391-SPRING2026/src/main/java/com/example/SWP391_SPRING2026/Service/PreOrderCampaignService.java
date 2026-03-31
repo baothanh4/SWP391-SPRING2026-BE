@@ -284,10 +284,6 @@ public class PreOrderCampaignService {
                 variant.setPreorderEndDate(null);
                 variant.setPreorderFulfillmentDate(null);
                 variant.setPreorderLimit(null);
-
-                if (variant.getSaleType() == SaleType.PRE_ORDER) {
-                    variant.setSaleType(SaleType.IN_STOCK);
-                }
                 continue;
             }
 

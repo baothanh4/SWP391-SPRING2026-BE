@@ -7,7 +7,6 @@ import com.example.SWP391_SPRING2026.Entity.ProductVariant;
 import com.example.SWP391_SPRING2026.Enum.SaleType;
 import com.example.SWP391_SPRING2026.Repository.ProductRepository;
 import com.example.SWP391_SPRING2026.Repository.ProductVariantRepository;
-import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,7 +34,7 @@ public class ProductVariantService {
         productVariant.setSku(dto.getSku());
         productVariant.setPrice(dto.getPrice());
         productVariant.setStockQuantity(dto.getStockQuantity() == null ? 0 : dto.getStockQuantity());
-        productVariant.setSaleType(SaleType.IN_STOCK);
+        productVariant.setSaleType(dto.getSaleType() == null ? SaleType.IN_STOCK : dto.getSaleType());
         productVariant.setAllowPreorder(false);
         productVariant.setPreorderLimit(null);
         productVariant.setPreorderStartDate(null);
@@ -64,11 +63,14 @@ public class ProductVariantService {
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
         variant.setStockQuantity(newStock);
+        if (dto.getSaleType() != null) {
+            variant.setSaleType(dto.getSaleType());
+        }
 
         productVariantRepository.save(variant);
 
-        // Chỉ allocate sau khi stock mới đã được save vào variant
-        if (variant.getSaleType() == SaleType.PRE_ORDER && newStock > oldStock) {
+        // Khi stock tăng: ưu tiên allocate cho queue preorder, sau đó tự chuyển về IN_STOCK nếu còn hàng và hết queue.
+        if (newStock > oldStock) {
             preOrderService.allocateAvailableStock(variantId);
             preOrderService.convertToInStockIfReady(variantId);
         }
@@ -101,7 +103,7 @@ public class ProductVariantService {
                 .preorderStartDate(productVariant.getPreorderStartDate())
                 .preorderEndDate(productVariant.getPreorderEndDate())
                 .preorderFulfillmentDate(productVariant.getPreorderFulfillmentDate())
-                .availabilityStatus(VariantAvailabilityResolver.resolve(productVariant))
+                .availabilityStatus(preOrderService.resolveAvailability(productVariant))
                 .product_id(productVariant.getProduct().getId())
                 .build();
     }

@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import com.example.SWP391_SPRING2026.Enum.VariantAvailabilityStatus;
-import com.example.SWP391_SPRING2026.Utility.VariantAvailabilityResolver;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -39,6 +38,7 @@ public class CartService {
     private final ProductComboRepository  productComboRepository;
     private final EntityManager entityManager;
     private final PreOrderRepository preOrderRepository;
+    private final PreOrderService preOrderService;
 
     public CartResponseDTO getCurrentCart(Long userId) {
         Cart cart = cartRepository
@@ -249,13 +249,9 @@ public class CartService {
             throw new ResourceNotFoundException("Product not available");
         }
 
-        // đảm bảo saleType không null
-        if (variant.getSaleType() == null) {
-            throw new BadRequestException("Variant sale type is not defined");
-        }
+        VariantAvailabilityStatus availability = preOrderService.resolveAvailability(variant);
 
-        // ================= IN STOCK =================
-        if (variant.getSaleType() == com.example.SWP391_SPRING2026.Enum.SaleType.IN_STOCK) {
+        if (availability == VariantAvailabilityStatus.IN_STOCK) {
 
             int stock = variant.getStockQuantity() == null ? 0 : variant.getStockQuantity();
 
@@ -272,19 +268,14 @@ public class CartService {
             return;
         }
 
-        // ================= PRE ORDER =================
-        if (variant.getSaleType() == com.example.SWP391_SPRING2026.Enum.SaleType.PRE_ORDER) {
+        if (availability == VariantAvailabilityStatus.PRE_ORDER) {
 
-            VariantAvailabilityStatus availability = VariantAvailabilityResolver.resolve(variant);
-
-            if (availability != VariantAvailabilityStatus.PRE_ORDER) {
-                throw new BadRequestException("Pre-order is not available");
-            }
-
-            int limit = variant.getPreorderLimit() == null ? 0 : variant.getPreorderLimit();
+            Integer limit = variant.getPreorderLimit();
             int current = variant.getCurrentPreorders() == null ? 0 : variant.getCurrentPreorders();
 
-            int remainingSlots = Math.max(limit - current, 0);
+            int remainingSlots = (limit == null)
+                    ? Integer.MAX_VALUE
+                    : Math.max(limit - current, 0);
 
             if (remainingSlots <= 0) {
                 throw new BadRequestException("Pre-order slot is full");
@@ -308,9 +299,10 @@ public class CartService {
             if (existingQty + requestedQty > 2) {
                 throw new BadRequestException("Each customer can pre-order at most 2 units for this variant");
             }
-
             return;
         }
+
+        throw new BadRequestException("Pre-order is not available");
     }
 
     private CartResponseDTO mapToResponse(Cart cart) {
